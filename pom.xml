@@ -300,7 +300,20 @@
 
     <build>
         <plugins>
-           <!-- Zanata translations -->
+		   <!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+		   <!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+		   <plugin>
+			  <groupId>org.apache.maven.plugins</groupId>
+			  <artifactId>maven-deploy-plugin</artifactId>
+			  <version>2.7</version>
+			  <configuration>
+				<skip>true</skip>
+			  </configuration>
+			</plugin>
+			<!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+			<!-- XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX -->
+
+			<!-- Zanata translations -->
             <plugin>
               <groupId>org.zanata</groupId>
               <artifactId>zanata-maven-plugin</artifactId>
