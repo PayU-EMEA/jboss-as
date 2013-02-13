@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion> 
 
 	<groupId>com.payu.jboss.as</groupId>
-    <artifactId>jboss-distribution-packer</artifactId>
-	<version>4.0.0</version>
+    <artifactId>jboss-as</artifactId>
+	<version>7.1.4.Final-SNAPSHOT</version>
     
     <name>JBoss Application Server :: instance image packer</name>
     <description>PayU JBoss instance image packer</description>
@@ -23,9 +23,9 @@
 	
     <properties>        
 		<!-- jboss as version -->
-		<jboss.as.version>jboss-as-7.1.4.Final-SNAPSHOT</jboss.as.version>        
+		<jboss.as.filename>${project.artifactId}-${project.version}</jboss.as.filename>        
 		<!-- jboss as build target directory -->
-		<jboss.as.src.directory>../../build/target/${jboss.as.version}</jboss.as.src.directory>        		
+		<jboss.as.src.directory>../../build/target/${jboss.as.filename}</jboss.as.src.directory>        		
 		<!-- target dir -->
 		<target.directory>./target</target.directory>        		
 		<assembly.descriptor.path>config/assembly/assembly_descriptor.xml</assembly.descriptor.path>
