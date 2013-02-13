@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--   Super pom JBoss 7.x.x.x instance packer  -->
+  
+  <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion> 
+
+	<groupId>com.payu.jboss.as</groupId>
+    <artifactId>jboss-distribution-builder</artifactId>
+	<version>4.0.0</version>
+    
+    <name>JBoss Application Server :: instance image packer</name>
+    <description>PayU JBoss instance image packer</description>
+
+    <packaging>pom</packaging>
+
+	<parent>
+		<groupId>com.payu</groupId>
+		<artifactId>payu</artifactId>
+		<version>3</version>
+		<relativePath/>
+	</parent>
+	
+  <modules>
+	<module>..</module>
+	<module>jboss-as-packer</module>
+  </modules>
+
+    
+</project>
