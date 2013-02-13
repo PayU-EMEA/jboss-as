@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion> 
 
 	<groupId>com.payu.jboss.as</groupId>
-    <artifactId>jboss-as</artifactId>
+	<artifactId>jboss-as</artifactId>
 	<version>7.1.4.Final-SNAPSHOT</version>
     
     <name>JBoss Application Server :: instance image packer</name>
