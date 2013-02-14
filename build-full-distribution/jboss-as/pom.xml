@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.payu</groupId>
+        <artifactId>payu</artifactId>
+        <version>3</version>
+        <relativePath />
+    </parent>
+    <groupId>com.payu.commons.jboss7</groupId>
+    <artifactId>jboss-as</artifactId>
+    <version>7.1.4.Final-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <properties>
+        <jboss.as.filename>${project.artifactId}-${project.version}</jboss.as.filename>
+        <jboss.as.src.directory>../../build/target/${jboss.as.filename}</jboss.as.src.directory>
+        <assembly.descriptor.path>src/main/assembly/assembly_descriptor.xml</assembly.descriptor.path>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.4</version>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>${assembly.descriptor.path}</descriptor>
+                            </descriptors>
+                            <appendAssemblyId>false</appendAssemblyId>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
