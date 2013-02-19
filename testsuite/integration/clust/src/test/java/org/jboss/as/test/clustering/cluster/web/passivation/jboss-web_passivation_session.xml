@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jboss-web version="6.0" xmlns="http://www.jboss.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.jboss.com/xml/ns/javaee http://www.jboss.org/j2ee/schema/jboss-web_6_0.xsd">
+
+    <replication-config>
+        <replication-trigger>SET_AND_GET</replication-trigger>
+        <replication-granularity>SESSION</replication-granularity>
+    </replication-config>
+
+    <max-active-sessions>20</max-active-sessions>
+
+    <passivation-config>
+        <use-session-passivation>TRUE</use-session-passivation>
+        <passivation-min-idle-time>5</passivation-min-idle-time> <!-- in seconds -->
+        <passivation-max-idle-time>10</passivation-max-idle-time> <!-- in seconds -->
+    </passivation-config>
+
+</jboss-web>
