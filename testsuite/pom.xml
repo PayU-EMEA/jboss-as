@@ -185,32 +185,10 @@
             <artifactId>jboss-as-build</artifactId>
             <type>pom</type>
         </dependency>
-        <dependency>
-            <groupId>org.projectodd.stilts</groupId>
-            <artifactId>stilts-stomp-client</artifactId>
-               <exclusions>
-                  <!-- use io.netty:netty instead -->
-                   <exclusion>
-                       <groupId>org.jboss.netty</groupId>
-                       <artifactId>netty</artifactId>
-                   </exclusion>
-               </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.projectodd.stilts</groupId>
-            <artifactId>stilts-stomplet-server-core</artifactId>
-               <exclusions>
-                  <!-- use io.netty:netty instead -->
-                   <exclusion>
-                       <groupId>org.jboss.netty</groupId>
-                       <artifactId>netty</artifactId>
-                   </exclusion>
-               </exclusions>
-        </dependency>
         <!-- Needed for @Resource(lookup=). -->
         <dependency>
             <groupId>org.jboss.spec.javax.annotation</groupId>
-            <artifactId>jboss-annotations-api_1.1_spec</artifactId>
+            <artifactId>jboss-annotations-api_1.2_spec</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.arquillian.junit</groupId>
@@ -252,7 +230,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-help-plugin</artifactId>
-                <version>2.1.1</version>
                 <inherited>true</inherited>
                 <executions>
                     <execution><id>help.active-profiles</id>
@@ -279,9 +256,8 @@
             </plugin>
 
             <plugin>
-                <groupId>org.codehaus.mojo</groupId>
+                <groupId>org.kuali.maven.plugins</groupId>
                 <artifactId>properties-maven-plugin</artifactId>
-                <version>1.0-alpha-2</version>
                 <executions>
                     <execution>
                         <phase>initialize</phase>
@@ -291,36 +267,10 @@
                 </executions>
             </plugin>
 
-            <!--
-                Provide jboss-annotations-api_1.1_spec to compiler as endorsed.
-                Big complex hack just to get @Resource(lookup="foo").  AS7-3123
-            -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <inherited>true</inherited>  <!-- Needed for compilation of all submodules. -->
-                <executions combine.children="append">
-                    <execution>
-                        <id>copy-annotations-endorsed</id>
-                        <goals><goal>copy</goal></goals>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>org.jboss.spec.javax.annotation</groupId>
-                                    <artifactId>jboss-annotations-api_1.1_spec</artifactId>
-                                </artifactItem>
-                            </artifactItems>
-                            <outputDirectory>${project.build.directory}/endorsed</outputDirectory>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>-Djava.endorsed.dirs=${project.build.directory}/endorsed</compilerArgument>
-                </configuration>
                 <!-- Don't compile src/main/java - nothing to do. -->
                 <executions><execution><id>default-compile</id><phase>none</phase></execution></executions>
             </plugin>
@@ -447,7 +397,6 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
-                <version>3.0</version>
                 <executions><execution><id>default-site</id><phase>none</phase></execution></executions>
             </plugin>
 
@@ -492,11 +441,10 @@
 
                 </executions>
                 <dependencies>
-                    <!-- Todo: Move to <pluginManagement>. -->
                     <dependency>
-                        <groupId>ant</groupId>
+                        <groupId>org.apache.ant</groupId>
                         <artifactId>ant-junit</artifactId>
-                        <version>1.6.5</version>
+                        <version>${version.ant.junit}</version>
                     </dependency>
                 </dependencies>
             </plugin>
@@ -1174,7 +1122,6 @@
                                                     <fileset dir="../clustering/singleton/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../clustering/web-infinispan/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../clustering/web-spi/src/main/java"><include name="**/*.java"/></fileset>
-                                                    <fileset dir="../cmp/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../configadmin/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../config-assembly/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../connector/src/main/java"><include name="**/*.java"/></fileset>
@@ -1185,12 +1132,10 @@
                                                     <fileset dir="../domain-http/interface/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../domain-management/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../ee/src/main/java"><include name="**/*.java"/></fileset>
-                                                    <fileset dir="../ee-deployment/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../ejb3/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../embedded/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../host-controller/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../jacorb/src/main/java"><include name="**/*.java"/></fileset>
-                                                    <fileset dir="../jaxr/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../jaxrs/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../jdr/jboss-as-jdr/src/main/java"><include name="**/*.java"/></fileset>
                                                     <fileset dir="../jmx/src/main/java"><include name="**/*.java"/></fileset>

@@ -169,6 +169,38 @@
                     </plugin>
 
                     <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>keytool-maven-plugin</artifactId>
+                        <version>1.2</version>
+                        <executions>
+                            <execution>
+                                <phase>generate-test-resources</phase>
+                                <id>clean-jcetest-keystore</id>
+                                <goals>
+                                    <goal>clean</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <phase>generate-test-resources</phase>
+                                <id>genkey-jcetest-keystore</id>
+                                <goals>
+                                    <goal>genkey</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <keystore>${basedir}/target/jcetest.keystore</keystore>
+                            <dname>cn=commonName, ou=organizationUnit, o=organizationName, c=countryCode</dname>
+                            <keypass>password</keypass>
+                            <storepass>password</storepass>
+                            <alias>test</alias>
+                            <keyalg>RSA</keyalg>
+                            <keysize>2048</keysize>
+                            <validity>365</validity>
+                        </configuration>
+                    </plugin>
+
+                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-surefire-plugin</artifactId>
                         <executions combine.children="append">
@@ -188,11 +220,8 @@
                                         <include>org/jboss/as/test/integration/*/security/**/*TestCase.java</include>
                                         <include>org/jboss/as/test/integration/ejb/mdb/**/*TestCase*.java</include>
                                         <include>org/jboss/as/test/integration/ejb/pool/**/*TestCase*.java</include>
-                                        <include>org/jboss/as/test/integration/ejb/entity/cmp/**/*TestCase*.java</include>
-                                        <include>org/jboss/as/test/integration/ejb/remote/entity/cmp/**/*TestCase*.java</include>
                                         <include>org/jboss/as/test/integration/ejb/management/deployments/*TestCase.java</include>
                                         <include>org/jboss/as/test/integration/ejb/transaction/bmt/lazyenlist</include>
-                                        <include>org/jboss/as/test/integration/jaxr/**/*TestCase*.java</include>
                                         <include>org/jboss/as/test/integration/jca/bootstrap/**/*TestCase*.java</include>
                                         <include>org/jboss/as/test/integration/messaging/**/*TestCase*.java</include>
                                         <include>org/jboss/as/test/integration/management/cli/HelpTestCase.java</include>
@@ -236,11 +265,8 @@
                                         <exclude>org/jboss/as/test/integration/*/security/**/*TestCase.java</exclude>
                                         <exclude>org/jboss/as/test/integration/ejb/mdb/**/*TestCase*.java</exclude>
                                         <exclude>org/jboss/as/test/integration/ejb/pool/**/*TestCase*.java</exclude>
-                                        <exclude>org/jboss/as/test/integration/ejb/entity/cmp/**/*TestCase*.java</exclude>
-                                        <exclude>org/jboss/as/test/integration/ejb/remote/entity/cmp/**/*TestCase*.java</exclude>
                                         <exclude>org/jboss/as/test/integration/ejb/management/deployments/*TestCase.java</exclude>
                                         <exclude>org/jboss/as/test/integration/ejb/transaction/bmt/lazyenlist</exclude>
-                                        <exclude>org/jboss/as/test/integration/jaxr/**/*TestCase*.java</exclude>
                                         <exclude>org/jboss/as/test/integration/jca/bootstrap/**/*TestCase*.java</exclude>
                                         <exclude>org/jboss/as/test/integration/messaging/**/*TestCase*.java</exclude>
                                         <exclude>org/jboss/as/test/integration/management/cli/HelpTestCase.java</exclude>

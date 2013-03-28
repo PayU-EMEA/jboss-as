@@ -64,7 +64,6 @@ import org.jboss.osgi.framework.spi.BootstrapBundlesInstall;
 import org.jboss.osgi.framework.spi.BootstrapBundlesResolve;
 import org.jboss.osgi.framework.spi.BundleManager;
 import org.jboss.osgi.framework.spi.BundleStorage;
-import org.jboss.osgi.framework.spi.IntegrationService;
 import org.jboss.osgi.framework.spi.IntegrationServices;
 import org.jboss.osgi.framework.spi.StorageState;
 import org.jboss.osgi.metadata.OSGiManifestBuilder;
@@ -85,14 +84,13 @@ import org.jboss.osgi.vfs.AbstractVFS;
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
+import org.osgi.framework.startlevel.BundleStartLevel;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
-import org.osgi.service.packageadmin.PackageAdmin;
 import org.osgi.service.repository.ContentNamespace;
-import org.osgi.service.startlevel.StartLevel;
 
 /**
- * An {@link IntegrationService} to install the configured capability bundles.
+ * An {@link org.jboss.osgi.framework.spi.IntegrationService} to install the configured capability bundles.
  *
  * @author Thomas.Diesler@jboss.com
  * @since 11-Sep-2010
@@ -103,8 +101,6 @@ class BootstrapBundlesIntegration extends BootstrapBundlesInstall<Void> {
     private final InjectedValue<BundleStorage> injectedStorageProvider = new InjectedValue<BundleStorage>();
     private final InjectedValue<ServerEnvironment> injectedServerEnvironment = new InjectedValue<ServerEnvironment>();
     private final InjectedValue<BundleContext> injectedSystemContext = new InjectedValue<BundleContext>();
-    private final InjectedValue<PackageAdmin> injectedPackageAdmin = new InjectedValue<PackageAdmin>();
-    private final InjectedValue<StartLevel> injectedStartLevel = new InjectedValue<StartLevel>();
     private final InjectedValue<SubsystemState> injectedSubsystemState = new InjectedValue<SubsystemState>();
     private final InjectedValue<XEnvironment> injectedEnvironment = new InjectedValue<XEnvironment>();
     private final InjectedValue<XRepository> injectedRepository = new InjectedValue<XRepository>();
@@ -122,10 +118,8 @@ class BootstrapBundlesIntegration extends BootstrapBundlesInstall<Void> {
         builder.addDependency(OSGiConstants.SUBSYSTEM_STATE_SERVICE_NAME, SubsystemState.class, injectedSubsystemState);
         builder.addDependency(OSGiConstants.REPOSITORY_SERVICE_NAME, XRepository.class, injectedRepository);
         builder.addDependency(Services.BUNDLE_MANAGER, BundleManager.class, injectedBundleManager);
-        builder.addDependency(Services.PACKAGE_ADMIN, PackageAdmin.class, injectedPackageAdmin);
-        builder.addDependency(IntegrationServices.BUNDLE_STORAGE, BundleStorage.class, injectedStorageProvider);
+        builder.addDependency(IntegrationServices.BUNDLE_STORAGE_PLUGIN, BundleStorage.class, injectedStorageProvider);
         builder.addDependency(Services.FRAMEWORK_CREATE, BundleContext.class, injectedSystemContext);
-        builder.addDependency(Services.START_LEVEL, StartLevel.class, injectedStartLevel);
         builder.addDependency(Services.ENVIRONMENT, XEnvironment.class, injectedEnvironment);
     }
 
@@ -210,12 +204,12 @@ class BootstrapBundlesIntegration extends BootstrapBundlesInstall<Void> {
                 injectedEnvironment.getValue().installResources(resource);
 
                 // Set the start level of the adapted bundle
-                Integer bundleStartLevel = configcap.getStartLevel();
-                if (bundleStartLevel != null && bundleStartLevel > 0) {
-                    StartLevel plugin = injectedStartLevel.getValue();
+                Integer startlevel = configcap.getStartLevel();
+                if (startlevel != null && startlevel > 0) {
                     Long bundleId = resource.getAttachment(Long.class);
                     XBundle bundle = getBundleManager().getBundleById(bundleId);
-                    plugin.setBundleStartLevel(bundle, bundleStartLevel);
+                    BundleStartLevel bundleStartLevel = bundle.adapt(BundleStartLevel.class);
+                    bundleStartLevel.setStartLevel(startlevel);
                 }
                 return true;
             }
@@ -342,15 +336,15 @@ class BootstrapBundlesIntegration extends BootstrapBundlesInstall<Void> {
         }
 
         @Override
-        protected ServiceController<Void> installActivateService(ServiceTarget serviceTarget, Set<ServiceName> resolvedServices) {
-            return new BootstrapActivateIntegration(getServiceName().getParent(), resolvedServices).install(serviceTarget, getServiceListener());
+        protected ServiceController<Void> installActivateService(ServiceTarget serviceTarget, Set<XBundle> resolvedBundles) {
+            return new BootstrapActivateIntegration(getServiceName().getParent(), resolvedBundles).install(serviceTarget, getServiceListener());
         }
     }
 
     class BootstrapActivateIntegration extends BootstrapBundlesActivate<Void> {
 
-        BootstrapActivateIntegration(ServiceName baseName, Set<ServiceName> installedServices) {
-            super(baseName, installedServices);
+        BootstrapActivateIntegration(ServiceName baseName, Set<XBundle> resolvedBundles) {
+            super(baseName, resolvedBundles);
         }
 
         @Override

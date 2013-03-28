@@ -24,14 +24,10 @@
 
 package org.jboss.as.ejb3;
 
-import static org.jboss.logging.Logger.Level.DEBUG;
-import static org.jboss.logging.Logger.Level.ERROR;
-import static org.jboss.logging.Logger.Level.INFO;
-import static org.jboss.logging.Logger.Level.WARN;
-
 import java.io.File;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
+import java.sql.SQLException;
 import java.util.Date;
 
 import javax.ejb.Timer;
@@ -53,6 +49,10 @@ import org.jboss.logging.annotations.MessageLogger;
 import org.jboss.remoting3.Channel;
 import org.jboss.remoting3.MessageInputStream;
 
+import static org.jboss.logging.Logger.Level.ERROR;
+import static org.jboss.logging.Logger.Level.INFO;
+import static org.jboss.logging.Logger.Level.WARN;
+
 /**
  * This module is using message IDs in the range 14100-14599. This file is using the subset 14100-14299 for
  * logger messages. See http://community.jboss.org/docs/DOC-16810 for the full list of currently reserved
@@ -63,12 +63,10 @@ import org.jboss.remoting3.MessageInputStream;
 @MessageLogger(projectCode = "JBAS")
 public interface EjbLogger extends BasicLogger {
 
-    /**
-     * Default root level logger with the package name for he category.
-     */
-    EjbLogger ROOT_LOGGER = Logger.getMessageLogger(EjbLogger.class, EjbLogger.class.getPackage().getName());
+    EjbLogger ROOT_LOGGER = Logger.getMessageLogger(EjbLogger.class, "org.jboss.as.ejb3");
 
-    EjbLogger EJB3_LOGGER = Logger.getMessageLogger(EjbLogger.class, "org.jboss.as.ejb3");
+    //we should deprecate this
+    EjbLogger EJB3_LOGGER = ROOT_LOGGER;
 
     /**
      * logger use to log EJB invocation errors
@@ -406,8 +404,8 @@ public interface EjbLogger extends BasicLogger {
      * Logs a waring message indicating an overlapped invoking timeout for timer
      */
     @LogMessage(level = WARN)
-    @Message(id = 14143, value = "Timer %s is still active, skipping overlapping scheduled execution at: %s")
-    void skipOverlappingInvokeTimeout(String id, Date scheduledTime);
+    @Message(id = 14143, value = "A previous execution of timer [%s %s] is still in progress, skipping this overlapping scheduled execution at: %s")
+    void skipOverlappingInvokeTimeout(String timedObjectId, String timerId, Date scheduledTime);
 
     // NOTE: messages 14144 to 14149 were moved to message bundle, do not reuse the ids
 
@@ -569,8 +567,23 @@ public interface EjbLogger extends BasicLogger {
     @Message(id = 14261, value = "Failed to reinstate timer '%s' (id=%s) from its persistent state")
     void timerReinstatementFailed(String timedObjectId, String timerId, @Cause Throwable cause);
 
+    /**
+     * Logs a waring message indicating an overlapped invoking timeout for timer
+     */
+    @LogMessage(level = WARN)
+    @Message(id = 14262, value = "A previous execution of timer [%s %s] is being retried, skipping this scheduled execution at: %s")
+    void skipInvokeTimeoutDuringRetry(String timedObjectId, String timerId, Date scheduledTime);
+
+    @LogMessage(level = ERROR)
+    @Message(id = 14263, value = "Cannot create table for timer persistence")
+    void couldNotCreateTable(@Cause SQLException e);
+
+    @LogMessage(level = ERROR)
+    @Message(id = 14264, value = "Exception running timer task for timer %s on EJB %s")
+    void exceptionRunningTimerTask(String timerId, String timedObjectId, @Cause  Exception e);
+
+
     // Don't add message ids greater that 14299!!! If you need more first check what EjbMessages is
     // using and take more (lower) numbers from the available range for this module. If the range for the module is
     // all used, go to https://community.jboss.org/docs/DOC-16810 and allocate another block for this subsystem
-
 }

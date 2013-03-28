@@ -38,19 +38,22 @@
     <name>JBoss Application Server: XTS Subsystem</name>
 
     <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
-                </configuration>
-            </plugin>
-        </plugins>
+       <plugins>
+          <plugin>
+              <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-surefire-plugin</artifactId>
+              <configuration>
+                  <redirectTestOutputToFile>true</redirectTestOutputToFile>
+                  <enableAssertions>true</enableAssertions>
+                  <systemPropertyVariables>
+                      <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+                      <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+                  </systemPropertyVariables>
+              </configuration>
+          </plugin>
+       </plugins>
     </build>
-
+    
     <dependencies>
         <dependency>
             <groupId>org.jboss.as</groupId>
@@ -73,20 +76,20 @@
             <artifactId>jboss-as-security</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.jbossts.jts</groupId>
-            <artifactId>jbossjts-jacorb</artifactId>
+            <groupId>org.jboss.narayana.jts</groupId>
+            <artifactId>narayana-jts-jacorb</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.jbossts.xts</groupId>
+            <groupId>org.jboss.narayana.xts</groupId>
             <artifactId>jbossxts</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.jboss.jbossts.xts</groupId>
+            <groupId>org.jboss.narayana.xts</groupId>
             <artifactId>jbossxts</artifactId>
             <classifier>api</classifier>
         </dependency>
         <dependency>
-            <groupId>org.jboss.jbossts</groupId>
+            <groupId>org.jboss.narayana</groupId>
             <artifactId>jbosstxbridge</artifactId>
         </dependency>
         <dependency>
@@ -96,11 +99,16 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-subsystem-test</artifactId>
+						<type>pom</type>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.jboss.logging</groupId>
             <artifactId>jboss-logging</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.narayana.txframework</groupId>
+            <artifactId>txframework</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss.logging</groupId>
@@ -110,5 +118,10 @@
             <scope>provided</scope>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-weld</artifactId>
+        </dependency>
+
     </dependencies>
 </project>

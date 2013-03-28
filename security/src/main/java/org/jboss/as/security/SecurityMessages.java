@@ -37,7 +37,6 @@ import org.jboss.logging.annotations.Message;
 import org.jboss.logging.annotations.MessageBundle;
 import org.jboss.logging.Messages;
 import org.jboss.logging.annotations.Param;
-import org.jboss.modules.ModuleClassLoader;
 import org.jboss.modules.ModuleLoadException;
 import org.jboss.msc.service.StartException;
 
@@ -63,7 +62,7 @@ public interface SecurityMessages {
     SecurityMessages MESSAGES = Messages.getBundle(SecurityMessages.class);
 
     /**
-     * Creates an exception indicating the inability to get the {@link ModuleClassLoader}
+     * Creates an exception indicating the inability to get the {@link org.jboss.modules.ModuleClassLoader}
      *
      * @return a {@link IllegalStateException} for the error.
      */
@@ -288,5 +287,12 @@ public interface SecurityMessages {
      */
     @Message(id = 13328, value = "No authentication cache for security domain '%s' available")
     OperationFailedException noAuthenticationCacheAvailable(String securityDomain);
+
+    /**
+     * Create an IllegalStateFoundException to indicate no UserPrincipal was found on the underlying connection.
+     * @return the exception
+     */
+    @Message(id= 13329, value = "No UserPrincipalFound constructing RemotingConnectionPrincipal.")
+    IllegalStateException noUserPrincipalFound();
 
 }

@@ -25,7 +25,6 @@ package org.jboss.as.messaging.jms;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 import static org.jboss.as.messaging.CommonAttributes.CONNECTOR;
 import static org.jboss.as.messaging.CommonAttributes.JGROUPS_CHANNEL;
-import static org.jboss.as.messaging.CommonAttributes.JGROUPS_STACK;
 import static org.jboss.as.messaging.CommonAttributes.LOCAL;
 import static org.jboss.as.messaging.CommonAttributes.LOCAL_TX;
 import static org.jboss.as.messaging.CommonAttributes.NONE;
@@ -48,6 +47,7 @@ import org.jboss.as.controller.descriptions.DescriptionProvider;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.messaging.AlternativeAttributeCheckHandler;
 import org.jboss.as.messaging.CommonAttributes;
+import org.jboss.as.messaging.HornetQActivationService;
 import org.jboss.as.messaging.MessagingDescriptions;
 import org.jboss.as.messaging.MessagingServices;
 import org.jboss.as.messaging.jms.ConnectionFactoryAttributes.Common;
@@ -56,7 +56,6 @@ import org.jboss.dmr.ModelNode;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceController.Mode;
-import org.jboss.msc.service.ServiceListener;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceTarget;
 
@@ -137,11 +136,11 @@ public class PooledConnectionFactoryAdd extends AbstractAddStepHandler implement
                 .addService(hornetQResourceAdapterService, resourceAdapterService)
                 .addDependency(TxnServices.JBOSS_TXN_TRANSACTION_MANAGER, resourceAdapterService.getTransactionManager())
                 .addDependency(hqServiceName, HornetQServer.class, resourceAdapterService.getHornetQService())
+                .addDependency(HornetQActivationService.getHornetQActivationServiceName(hqServiceName))
                 .addDependency(JMSServices.getJmsManagerBaseServiceName(hqServiceName))
-                .addListener(ServiceListener.Inheritance.ALL, verificationHandler);
-
-
-        newControllers.add(serviceBuilder.setInitialMode(Mode.ACTIVE).install());
+                .setInitialMode(Mode.PASSIVE)
+                .addListener(verificationHandler);
+        newControllers.add(serviceBuilder.install());
     }
 
     static List<String> getConnectors(final ModelNode model) {

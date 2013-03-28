@@ -33,7 +33,6 @@ import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.NoopOperationStepHandler;
 import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.ReadResourceNameOperationStepHandler;
-import org.jboss.as.controller.ResourceDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.controller.SimpleResourceDefinition;
@@ -41,7 +40,6 @@ import org.jboss.as.controller.client.helpers.domain.ServerStatus;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.operations.validation.EnumValidator;
 import org.jboss.as.controller.operations.validation.IntRangeValidator;
-import org.jboss.as.controller.operations.validation.ModelTypeValidator;
 import org.jboss.as.controller.parsing.Attribute;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
 import org.jboss.as.controller.resource.InterfaceDefinition;
@@ -51,6 +49,7 @@ import org.jboss.as.host.controller.ServerInventory;
 import org.jboss.as.host.controller.descriptions.HostResolver;
 import org.jboss.as.host.controller.model.jvm.JvmResourceDefinition;
 import org.jboss.as.host.controller.operations.ServerAddHandler;
+import org.jboss.as.host.controller.operations.ServerProcessHandlers;
 import org.jboss.as.host.controller.operations.ServerRemoveHandler;
 import org.jboss.as.host.controller.operations.ServerRestartHandler;
 import org.jboss.as.host.controller.operations.ServerRestartRequiredServerConfigWriteAttributeHandler;
@@ -65,7 +64,7 @@ import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.ModelType;
 
 /**
- * {@link ResourceDefinition} for a {@code server-config} resource under a host.
+ * {@link org.jboss.as.controller.ResourceDefinition} for a {@code server-config} resource under a host.
  *
  * @author Brian Stansberry (c) 2012 Red Hat Inc.
  */
@@ -164,6 +163,10 @@ public class ServerConfigResourceDefinition extends SimpleResourceDefinition {
             resourceRegistration.registerOperationHandler(ServerRestartHandler.DEFINITION, restartHandler);
             ServerStopHandler stopHandler = new ServerStopHandler(serverInventory);
             resourceRegistration.registerOperationHandler(ServerStopHandler.DEFINITION, stopHandler);
+            ServerProcessHandlers.ServerDestroyHandler destroyHandler = new ServerProcessHandlers.ServerDestroyHandler(serverInventory);
+            resourceRegistration.registerOperationHandler(ServerProcessHandlers.DESTROY_OPERATION, destroyHandler);
+            ServerProcessHandlers.ServerKillHandler killHandler = new ServerProcessHandlers.ServerKillHandler(serverInventory);
+            resourceRegistration.registerOperationHandler(ServerProcessHandlers.KILL_OPERATION, killHandler);
         }
     }
 

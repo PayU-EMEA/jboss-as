@@ -30,9 +30,11 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REA
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REMOVE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RESULT;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.UNDEFINE_ATTRIBUTE_OPERATION;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.VALUE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.WRITE_ATTRIBUTE_OPERATION;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.management.MBeanServerConnection;
@@ -40,8 +42,7 @@ import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
 import javax.xml.stream.XMLStreamException;
 
-import junit.framework.Assert;
-
+import org.jboss.as.controller.AttributeDefinition;
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
@@ -49,12 +50,15 @@ import org.jboss.as.controller.OperationStepHandler;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.extension.ExtensionRegistry;
-import org.jboss.as.controller.registry.AttributeAccess;
 import org.jboss.as.controller.operations.common.Util;
+import org.jboss.as.controller.registry.AttributeAccess;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.controller.transform.OperationTransformer.TransformedOperation;
 import org.jboss.as.model.test.FailedOperationTransformationConfig;
+import org.jboss.as.model.test.FailedOperationTransformationConfig.AttributesPathAddressConfig;
+import org.jboss.as.model.test.ModelFixer;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.network.SocketBinding;
 import org.jboss.as.remoting.EndpointService;
@@ -68,6 +72,7 @@ import org.jboss.as.subsystem.test.KernelServicesBuilder;
 import org.jboss.dmr.ModelNode;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceTarget;
+import org.junit.Assert;
 import org.junit.Test;
 import org.xnio.OptionMap;
 
@@ -467,63 +472,97 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
 
     @Test
     public void testTransformationAS712() throws Exception {
-        testTransformation_1_0_0("org.jboss.as:jboss-as-jmx:7.1.2.Final");
+        testTransformation_1_0_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformationAS713() throws Exception {
-        testTransformation_1_0_0("org.jboss.as:jboss-as-jmx:7.1.3.Final");
+        testTransformation_1_0_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformation_1_0_0(String mavenGAV) throws Exception {
+    private void testTransformation_1_0_0(ModelTestControllerVersion controllerVersion) throws Exception {
         String subsystemXml =
                 "<subsystem xmlns=\"" + Namespace.CURRENT.getUriString() + "\">" +
-                "   <expose-resolved-model domain-name=\"jboss.RESOLVED\"/>" +
-                "   <expose-expression-model domain-name=\"jboss.EXPRESSION\"/>" +
+                "   <expose-resolved-model domain-name=\"jboss.as\" proper-property-format=\"false\"/>" +
                 "   <remoting-connector />" +
                 "</subsystem>";
 
         ModelVersion oldVersion = ModelVersion.create(1, 0, 0);
         KernelServicesBuilder builder = createKernelServicesBuilder(new BaseAdditionalInitalization())
                 .setSubsystemXml(subsystemXml);
-        builder.createLegacyKernelServicesBuilder(null, oldVersion)
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, oldVersion)
                 .setExtensionClassName(JMXExtension.class.getName())
-                .addMavenResourceURL(mavenGAV);
+                .addMavenResourceURL("org.jboss.as:jboss-as-jmx:" + controllerVersion.getMavenGavVersion())
+                .configureReverseControllerCheck(AdditionalInitialization.MANAGEMENT, new ModelFixer() {
+                    @Override
+                    public ModelNode fixModel(ModelNode modelNode) {
+                        //This is slightly weird...
+                        //The reason is that in 7.2 the default behaviour is 'true' which is the a new feature, while 7.1.x uses 'false' under the scenes
+                        //So the ops from 7.1.x can never result in 'true'
+                        modelNode.get(CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED, CommonAttributes.PROPER_PROPERTY_FORMAT).set(false);
+                        return modelNode;
+                    }
+                });
+
         KernelServices mainServices = builder.build();
         KernelServices legacyServices = mainServices.getLegacyServices(oldVersion);
         Assert.assertNotNull(legacyServices);
 
+        ModelFixer modelFixer7_1_x = new ModelFixer() {
+            public ModelNode fixModel(ModelNode modelNode) {
+                if (modelNode.hasDefined("remoting-connector")) {
+                    if (modelNode.get("remoting-connector").hasDefined("jmx")) {
+                        if (modelNode.get("remoting-connector", "jmx").keys().size() == 0) {
+                            //The default is true, 7.1.x does not include the default for this value
+                            modelNode.get("remoting-connector", "jmx", "use-management-endpoint").set(true);
+                        }
+                    }
+                }
+                return modelNode;
+            }
+        };
 
-        ModelNode legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion);
+        ModelNode legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion, modelFixer7_1_x);
         check_1_0_0_Model(legacyModel.get(SUBSYSTEM, JMXExtension.SUBSYSTEM_NAME), true, true);
 
         //Test that show-model=>expression is ignored
-        ModelNode op = createOperation(WRITE_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
+        ModelNode op = createOperation(ADD, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
+        TransformedOperation transformedOp = mainServices.transformOperation(oldVersion, op);
+        Assert.assertTrue(transformedOp.rejectOperation(null));
+
+        op = createOperation(WRITE_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
         op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
         op.get(VALUE).set("discarded");
-        TransformedOperation transformedOp = mainServices.transformOperation(oldVersion, op);
-        Assert.assertNull(transformedOp.getTransformedOperation());
+        transformedOp = mainServices.transformOperation(oldVersion, op);
+        Assert.assertTrue(transformedOp.rejectOperation(null));
 
         op = createOperation(READ_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
         op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
         transformedOp = mainServices.transformOperation(oldVersion, op);
-        Assert.assertNull(transformedOp.getTransformedOperation());
-
-        op = createOperation(ADD, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
-        transformedOp = mainServices.transformOperation(oldVersion, op);
-        Assert.assertNull(transformedOp.getTransformedOperation());
+        Assert.assertTrue(transformedOp.rejectOperation(null));
 
         op = createOperation(REMOVE, CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION);
         transformedOp = mainServices.transformOperation(oldVersion, op);
-        Assert.assertNull(transformedOp.getTransformedOperation());
+        Assert.assertTrue(transformedOp.rejectOperation(null));
 
-        //Test the show-model=>resolved is converted
+        //Test the show-model=>resolved domain name is rejected if we try to make it anything different from the default
         op = createOperation(WRITE_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED);
         op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
         op.get(VALUE).set("discarded");
-        final TransformedOperation operation = mainServices.transformOperation(oldVersion, op);
-        Assert.assertNotNull(operation);
-        Assert.assertNull(operation.getTransformedOperation());
+        transformedOp = mainServices.transformOperation(oldVersion, op);
+        Assert.assertTrue(transformedOp.rejectOperation(null));
+
+        op = createOperation(WRITE_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED);
+        op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
+        op.get(VALUE).set("jboss.as");
+        transformedOp = mainServices.transformOperation(oldVersion, op);
+        Assert.assertNull(transformedOp.getTransformedOperation());
+        Assert.assertFalse(transformedOp.rejectOperation(null));
+
+        op = createOperation(UNDEFINE_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED);
+        op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
+        transformedOp = mainServices.transformOperation(oldVersion, op);
+        Assert.assertFalse(transformedOp.rejectOperation(null));
 
         op = createOperation(READ_ATTRIBUTE_OPERATION, CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED);
         op.get(NAME).set(CommonAttributes.DOMAIN_NAME);
@@ -535,27 +574,39 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
         transformedOp = mainServices.transformOperation(oldVersion, op);
         checkOutcome(mainServices.executeOperation(op));
         checkOutcome(mainServices.executeOperation(oldVersion, transformedOp));
-        legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion);
+        legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion, modelFixer7_1_x);
         check_1_0_0_Model(legacyModel.get(SUBSYSTEM, getMainSubsystemName()), true, false);
 
-
         op = createOperation(ADD, CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED);
+        op.get(CommonAttributes.PROPER_PROPERTY_FORMAT).set(false);
         transformedOp = mainServices.transformOperation(oldVersion, op);
         checkOutcome(mainServices.executeOperation(op));
         checkOutcome(mainServices.executeOperation(oldVersion, transformedOp));
-        legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion);
+        legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion, modelFixer7_1_x);
         check_1_0_0_Model(legacyModel.get(SUBSYSTEM, getMainSubsystemName()), true, true);
 
+        op = Util.getWriteAttributeOperation(PathAddress.pathAddress(
+                    PathElement.pathElement(SUBSYSTEM, getMainSubsystemName()),
+                    PathElement.pathElement(CommonAttributes.REMOTING_CONNECTOR, CommonAttributes.JMX)),
+                CommonAttributes.USE_MANAGEMENT_ENDPOINT, false);
+        ModelTestUtils.checkOutcome(mainServices.executeOperation(oldVersion, mainServices.transformOperation(oldVersion, op)));
+        transformedOp = mainServices.transformOperation(oldVersion, op);
+        checkOutcome(mainServices.executeOperation(op));
+        checkOutcome(mainServices.executeOperation(oldVersion, transformedOp));
+        legacyModel = checkSubsystemModelTransformation(mainServices, oldVersion, modelFixer7_1_x);
+        check_1_0_0_Model(legacyModel.get(SUBSYSTEM, getMainSubsystemName()), true, true);
+        Assert.assertFalse(legacyModel.get(SUBSYSTEM, getMainSubsystemName(), CommonAttributes.REMOTING_CONNECTOR, CommonAttributes.JMX, CommonAttributes.USE_MANAGEMENT_ENDPOINT).asBoolean());
     }
+
 
     @Test
     public void testRejectExpressionsAS712() throws Exception {
-        testRejectExpressions_1_0_0("org.jboss.as:jboss-as-jmx:7.1.2.Final");
+        testRejectExpressions_1_0_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testRejectExpressionsAS713() throws Exception {
-        testRejectExpressions_1_0_0("org.jboss.as:jboss-as-jmx:7.1.3.Final");
+        testRejectExpressions_1_0_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
     /**
@@ -563,9 +614,11 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
      *
      * @throws Exception
      */
-    private void testRejectExpressions_1_0_0(String mavenGAV) throws Exception {
+    private void testRejectExpressions_1_0_0(ModelTestControllerVersion controllerVersion) throws Exception {
         String subsystemXml =
             "<subsystem xmlns=\"" + Namespace.CURRENT.getUriString() + "\">" +
+                    "   <expose-resolved-model domain-name=\"${test.domain-name:non-standard}\" proper-property-format=\"${test.proper-property-format:true}\"/>" +
+                    "   <expose-expression-model domain-name=\"jboss.as\"/>" +
                     "   <remoting-connector use-management-endpoint=\"${test.exp:false}\"/>" +
                     "</subsystem>";
 
@@ -574,8 +627,8 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
 
         // create builder for legacy subsystem version
         ModelVersion version_1_0_0 = ModelVersion.create(1, 0, 0);
-        builder.createLegacyKernelServicesBuilder(null, version_1_0_0)
-                .addMavenResourceURL(mavenGAV);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, version_1_0_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-jmx:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());
@@ -590,10 +643,27 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
                 builder.parseXml(subsystemXml),
                 new FailedOperationTransformationConfig()
                         .addFailedAttribute(
+                                subsystemAddress.append(CommonAttributes.EXPOSE_MODEL, CommonAttributes.RESOLVED),
+                                new FailedOperationTransformationConfig.ChainedConfig(
+                                        createChainedConfigList(
+                                                new FailedOperationTransformationConfig.RejectExpressionsConfig(ExposeModelResourceResolved.DOMAIN_NAME),
+                                                new CorrectDomainNameConfig(ExposeModelResourceResolved.DOMAIN_NAME),
+                                                new CorrectPropertyFormatConfig(ExposeModelResourceResolved.PROPER_PROPERTY_FORMAT)),
+                                        ExposeModelResourceResolved.DOMAIN_NAME, ExposeModelResourceResolved.PROPER_PROPERTY_FORMAT))
+                        .addFailedAttribute(
+                                subsystemAddress.append(CommonAttributes.EXPOSE_MODEL, CommonAttributes.EXPRESSION),
+                                FailedOperationTransformationConfig.REJECTED_RESOURCE)
+                        .addFailedAttribute(
                                 subsystemAddress.append(RemotingConnectorResource.REMOTE_CONNECTOR_CONFIG_PATH),
-                                new FailedOperationTransformationConfig.RejectExpressionsConfig(RemotingConnectorResource.USE_MANAGEMENT_ENDPOINT))
-                        );
+                                new FailedOperationTransformationConfig.RejectExpressionsConfig(RemotingConnectorResource.USE_MANAGEMENT_ENDPOINT)));
+    }
 
+    private List<FailedOperationTransformationConfig.AttributesPathAddressConfig<?>> createChainedConfigList(FailedOperationTransformationConfig.AttributesPathAddressConfig<?>...cfgs){
+        List<AttributesPathAddressConfig<?>> list = new ArrayList<FailedOperationTransformationConfig.AttributesPathAddressConfig<?>>();
+        for (AttributesPathAddressConfig<?> cfg : cfgs) {
+            list.add(cfg);
+        }
+        return list;
     }
 
     private void check_1_0_0_Model(ModelNode legacySubsystem, boolean remotingConnector, boolean showModel) {
@@ -659,6 +729,52 @@ public class JMXSubsystemTestCase extends AbstractSubsystemTest {
 
             RemotingServices.installSecurityServices(target, "remote", null, null, tmpDirPath, null, null);
             RemotingServices.installConnectorServicesForSocketBinding(target, ManagementRemotingServices.MANAGEMENT_ENDPOINT, "remote", SocketBinding.JBOSS_BINDING_NAME.append("remote"), OptionMap.EMPTY, null, null);
+        }
+    }
+
+    private static class CorrectDomainNameConfig extends FailedOperationTransformationConfig.AttributesPathAddressConfig<CorrectDomainNameConfig>{
+
+        public CorrectDomainNameConfig(AttributeDefinition...attributes) {
+            super(convert(attributes));
+
+        }
+
+        @Override
+        protected boolean isAttributeWritable(String attributeName) {
+            return true;
+        }
+
+        @Override
+        protected boolean checkValue(String attrName, ModelNode attribute, boolean isWriteAttribute) {
+            return !attribute.asString().equals("jboss.as");
+        }
+
+        @Override
+        protected ModelNode correctValue(ModelNode toResolve, boolean isWriteAttribute) {
+            return new ModelNode("jboss.as");
+        }
+    }
+
+    private static class CorrectPropertyFormatConfig extends FailedOperationTransformationConfig.AttributesPathAddressConfig<CorrectDomainNameConfig>{
+
+        public CorrectPropertyFormatConfig(AttributeDefinition...attributes) {
+            super(convert(attributes));
+
+        }
+
+        @Override
+        protected boolean isAttributeWritable(String attributeName) {
+            return true;
+        }
+
+        @Override
+        protected boolean checkValue(String attrName, ModelNode attribute, boolean isWriteAttribute) {
+            return !attribute.asString().equals("false");
+        }
+
+        @Override
+        protected ModelNode correctValue(ModelNode toResolve, boolean isWriteAttribute) {
+            return new ModelNode(false);
         }
     }
 }

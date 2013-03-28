@@ -41,6 +41,7 @@ import java.util.Properties;
 
 import org.jboss.as.controller.RunningMode;
 import org.jboss.as.controller.interfaces.InetAddressUtil;
+import org.jboss.as.process.CommandLineArgumentUsageImpl;
 import org.jboss.as.process.CommandLineConstants;
 import org.jboss.as.process.ExitCodes;
 import org.jboss.as.process.protocol.StreamUtils;
@@ -63,6 +64,9 @@ import org.jboss.stdio.StdioContext;
  * @author Brian Stansberry
  */
 public final class Main {
+
+    private static final String PROCESS_NAME = "-D[Host Controller]";
+
     /**
      * The main method.
      *
@@ -70,6 +74,7 @@ public final class Main {
      */
     public static void main(String[] args) throws IOException {
         MDC.put("process", "host controller");
+
 
         // Grab copies of our streams.
         final InputStream in = System.in;
@@ -118,6 +123,7 @@ public final class Main {
         try {
             final HostControllerEnvironment config = determineEnvironment(args);
             if (config == null) {
+                usage(); // In case there was an error determining the environment print the usage
                 abort();
                 return null;
             } else {
@@ -169,6 +175,10 @@ public final class Main {
         SystemExiter.exit(ExitCodes.FAILED);
     }
 
+    private static void usage() {
+        CommandLineArgumentUsageImpl.printUsage(System.out);
+    }
+
     /**
      * @deprecated this method is not meant for public use
      */
@@ -199,7 +209,9 @@ public final class Main {
             final String arg = args[i];
 
             try {
-                if (CommandLineConstants.PROPERTIES.equals(arg) || CommandLineConstants.OLD_PROPERTIES.equals(arg)
+                if(PROCESS_NAME.equals(arg)) {
+                    // Skip the process name
+                } else if (CommandLineConstants.PROPERTIES.equals(arg) || CommandLineConstants.OLD_PROPERTIES.equals(arg)
                         || CommandLineConstants.SHORT_PROPERTIES.equals(arg)) {
                     // Set system properties from url/file
                     if (!processProperties(arg, args[++i], hostSystemProperties)) {

@@ -22,9 +22,29 @@
 
 package org.jboss.as.connector.subsystems.datasources;
 
+import static java.lang.System.getSecurityManager;
+import static java.lang.Thread.currentThread;
+import static java.security.AccessController.doPrivileged;
+import static org.jboss.as.connector.logging.ConnectorLogger.DS_DEPLOYER_LOGGER;
+import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
+
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.sql.Driver;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import javax.naming.Reference;
+import javax.resource.spi.ManagedConnectionFactory;
+import javax.sql.DataSource;
+
 import org.jboss.as.connector.services.driver.InstalledDriver;
 import org.jboss.as.connector.services.driver.registry.DriverRegistry;
 import org.jboss.as.connector.util.Injection;
+import org.jboss.as.util.security.ClearContextClassLoaderAction;
+import org.jboss.as.util.security.GetClassLoaderAction;
+import org.jboss.as.util.security.SetContextClassLoaderFromClassAction;
 import org.jboss.jca.adapters.jdbc.BaseWrapperManagedConnectionFactory;
 import org.jboss.jca.adapters.jdbc.local.LocalManagedConnectionFactory;
 import org.jboss.jca.adapters.jdbc.spi.ClassLoaderPlugin;
@@ -61,23 +81,6 @@ import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.StopContext;
 import org.jboss.msc.value.InjectedValue;
 import org.jboss.security.SubjectFactory;
-
-import javax.naming.Reference;
-import javax.resource.ResourceException;
-import javax.resource.spi.ManagedConnectionFactory;
-import javax.sql.DataSource;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.sql.Driver;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.jboss.as.connector.logging.ConnectorLogger.DS_DEPLOYER_LOGGER;
-import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
 
 /**
  * Base service for managing a data-source.
@@ -190,11 +193,15 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
     }
 
     protected TransactionIntegration getTransactionIntegration() {
-        AccessController.doPrivileged(new SetContextLoaderAction(TransactionIntegration.class.getClassLoader()));
+        if (getSecurityManager() == null) {
+            currentThread().setContextClassLoader(TransactionIntegration.class.getClassLoader());
+        } else {
+            doPrivileged(new SetContextClassLoaderFromClassAction(TransactionIntegration.class));
+        }
         try {
             return transactionIntegrationValue.getValue();
         } finally {
-            AccessController.doPrivileged(CLEAR_ACTION);
+            doPrivileged(ClearContextClassLoaderAction.getInstance());
         }
     }
 
@@ -202,23 +209,8 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
         if(classLoader != null) {
             return classLoader;
         }
-        return driverValue.getValue().getClass().getClassLoader();
-    }
-
-    private static final SetContextLoaderAction CLEAR_ACTION = new SetContextLoaderAction(null);
-
-    private static class SetContextLoaderAction implements PrivilegedAction<Void> {
-
-        private final ClassLoader classLoader;
-
-        public SetContextLoaderAction(final ClassLoader classLoader) {
-            this.classLoader = classLoader;
-        }
-
-        public Void run() {
-            Thread.currentThread().setContextClassLoader(classLoader);
-            return null;
-        }
+        final Class<? extends Driver> clazz = driverValue.getValue().getClass();
+        return getSecurityManager() == null ? clazz.getClassLoader() : doPrivileged(new GetClassLoaderAction(clazz));
     }
 
     protected class AS7DataSourceDeployer extends AbstractDsDeployer {
@@ -319,27 +311,18 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
                     Injection injector = new Injection();
                     for (ConfigProperty cpmd : configs) {
                         if (cpmd.isValueSet()) {
-                            boolean setValue = true;
 
-                            if (cpmd instanceof org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16) {
-                                org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16 cpmd16 = (org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16) cpmd;
-
-                                if (cpmd16.getConfigPropertyIgnore() != null && cpmd16.getConfigPropertyIgnore().booleanValue())
-                                    setValue = false;
+                            if (XsdString.isNull(cpmd.getConfigPropertyType())) {
+                                injector.inject(o,
+                                        cpmd.getConfigPropertyName().getValue(),
+                                        cpmd.getConfigPropertyValue().getValue());
+                            } else {
+                                injector.inject(o,
+                                        cpmd.getConfigPropertyName().getValue(),
+                                        cpmd.getConfigPropertyValue().getValue(),
+                                        cpmd.getConfigPropertyType().getValue());
                             }
 
-                            if (setValue) {
-                                if (XsdString.isNull(cpmd.getConfigPropertyType())) {
-                                    injector.inject(o,
-                                            cpmd.getConfigPropertyName().getValue(),
-                                            cpmd.getConfigPropertyValue().getValue());
-                                } else {
-                                    injector.inject(o,
-                                            cpmd.getConfigPropertyName().getValue(),
-                                            cpmd.getConfigPropertyValue().getValue(),
-                                            cpmd.getConfigPropertyType().getValue());
-                                }
-                            }
                         }
                     }
                 }
@@ -383,11 +366,15 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
 
         @Override
         public TransactionIntegration getTransactionIntegration() {
-            AccessController.doPrivileged(new SetContextLoaderAction(TransactionIntegration.class.getClassLoader()));
+            if (getSecurityManager() == null) {
+                currentThread().setContextClassLoader(TransactionIntegration.class.getClassLoader());
+            } else {
+                doPrivileged(new SetContextClassLoaderFromClassAction(TransactionIntegration.class));
+            }
             try {
                 return transactionIntegrationValue.getValue();
             } finally {
-                AccessController.doPrivileged(CLEAR_ACTION);
+                doPrivileged(ClearContextClassLoaderAction.getInstance());
             }
         }
 
@@ -423,7 +410,7 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
             }
 
             setMcfProperties(xaManagedConnectionFactory, xaDataSourceConfig, xaDataSourceConfig.getStatement());
-            xaManagedConnectionFactory.setUserTransactionJndiName("java:comp/UserTransaction");
+            xaManagedConnectionFactory.setUserTransactionJndiName("java:jboss/UserTransaction");
             return xaManagedConnectionFactory;
 
         }
@@ -432,7 +419,7 @@ public abstract class AbstractDataSourceService implements Service<DataSource> {
         protected ManagedConnectionFactory createMcf(org.jboss.jca.common.api.metadata.ds.DataSource arg0, String arg1,
                 ClassLoader arg2) throws NotFoundException, DeployException {
             final LocalManagedConnectionFactory managedConnectionFactory = new LocalManagedConnectionFactory();
-            managedConnectionFactory.setUserTransactionJndiName("java:comp/UserTransaction");
+            managedConnectionFactory.setUserTransactionJndiName("java:jboss/UserTransaction");
             managedConnectionFactory.setDriverClass(dataSourceConfig.getDriverClass());
 
             if (dataSourceConfig.getUrlDelimiter() != null) {

@@ -35,6 +35,9 @@
 
     <dependencies>
         <module name="javax.api"/>
+        <module name="org.apache.xalan" services="import"/>
+        <module name="org.apache.xerces" services="import"/>
+        <module name="org.codehaus.woodstox" services="import"/>        
         <module name="org.jboss.as.server" export="true"/>
         <module name="javax.api"/>
         <module name="org.jboss.dmr"/>
@@ -63,6 +66,7 @@
         <module name="org.jboss.as.protocol"/>
         <module name="org.jboss.as.remoting"/>
         <module name="org.jboss.as.security"/>
+        <module name="org.jboss.as.security-util"/>
         <module name="org.jboss.as.version"/>
         <module name="org.picketbox"/>
         <module name="org.jboss.metadata"/>

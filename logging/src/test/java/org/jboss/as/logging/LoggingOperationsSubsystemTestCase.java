@@ -21,7 +21,9 @@
 */
 package org.jboss.as.logging;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,21 +33,17 @@ import java.util.Map;
 import java.util.logging.Level;
 
 import org.apache.commons.io.FileUtils;
-import org.jboss.as.controller.ModelVersion;
-import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.client.helpers.ClientConstants;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
+import org.jboss.as.controller.operations.common.Util;
 import org.jboss.as.controller.services.path.PathResourceDefinition;
-import org.jboss.as.controller.transform.OperationTransformer.TransformedOperation;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.KernelServices;
-import org.jboss.as.subsystem.test.KernelServicesBuilder;
 import org.jboss.as.subsystem.test.SubsystemOperations;
 import org.jboss.dmr.ModelNode;
 import org.jboss.logmanager.LogContext;
 import org.jboss.logmanager.Logger;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -117,40 +115,14 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
 
     @Test
     public void testDisableHandler() throws Exception {
-        testDisableHandler(null);
-        testDisableHandler(PROFILE);
+        testDisableHandler(null, false);
+        testDisableHandler(PROFILE, false);
     }
 
     @Test
     public void testLegacyDisableHandler() throws Exception {
-        final String subsystemXml = getSubsystemXml();
-        final ModelVersion modelVersion = ModelVersion.create(1, 1, 0);
-        final KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization())
-                .setSubsystemXml(subsystemXml);
-
-        // Note this is running in ADMIN_ONLY meaning runtime changes won't take effect. Can't confirm the
-        // handlers actually get disabled.
-        builder.createLegacyKernelServicesBuilder(LoggingTestEnvironment.getManagementInstance(), modelVersion)
-                .addMavenResourceURL("org.jboss.as:jboss-as-logging:7.1.2.Final");
-
-        final KernelServices kernelServices = builder.build();
-        assertTrue(kernelServices.isSuccessfulBoot());
-        assertTrue(kernelServices.getLegacyServices(modelVersion).isSuccessfulBoot());
-        final ModelNode handlerAddress = createFileHandlerAddress("FILE").toModelNode();
-
-        // Disable the handler
-        TransformedOperation transformedOperation = kernelServices.transformOperation(modelVersion, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, false));
-        // Validate the operation has been transformed properly
-        assertEquals(AbstractHandlerDefinition.DISABLE_HANDLER.getName(), SubsystemOperations.getOperationName(transformedOperation.getTransformedOperation()));
-        // Execute the operation to confirm success
-        executeTransformOperation(kernelServices, modelVersion, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, false));
-
-        // Re-enable the handler
-        // Validate the operation has been transformed properly
-        transformedOperation = kernelServices.transformOperation(modelVersion, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, true));
-        assertEquals(AbstractHandlerDefinition.ENABLE_HANDLER.getName(), SubsystemOperations.getOperationName(transformedOperation.getTransformedOperation()));
-        // Execute the operation to confirm success
-        executeTransformOperation(kernelServices, modelVersion, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, true));
+        testDisableHandler(null, true);
+        testDisableHandler(PROFILE, true);
     }
 
     @Test
@@ -465,7 +437,7 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
         assertEquals(checksum, FileUtils.checksumCRC32(logFile));
     }
 
-    private void testDisableHandler(final String profileName) throws Exception {
+    private void testDisableHandler(final String profileName, boolean legacy) throws Exception {
         final KernelServices kernelServices = boot();
         final String fileHandlerName = "test-file-handler";
 
@@ -491,7 +463,14 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
 
         // Disable the handler
         final ModelNode handlerAddress = createFileHandlerAddress(profileName, fileHandlerName).toModelNode();
-        executeOperation(kernelServices, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, false));
+        ModelNode disableOp = legacy ? Util.getEmptyOperation(AbstractHandlerDefinition.DISABLE_HANDLER.getName(), handlerAddress)
+                                     : SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, false);
+        executeOperation(kernelServices, disableOp);
+
+        // The operation should set the enabled attribute to false
+        final ModelNode readOp = SubsystemOperations.createReadAttributeOperation(handlerAddress, CommonAttributes.ENABLED);
+        ModelNode result = executeOperation(kernelServices, readOp);
+        assertFalse("enabled attribute should be false when the disable operation is invoked", SubsystemOperations.readResult(result).asBoolean());
 
         // Log 3 more lines
         logger.info("Test message 4");
@@ -503,7 +482,13 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
         assertEquals("Handler was not disable.", 3, lines.size());
 
         // Re-enable the handler
-        executeOperation(kernelServices, SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, true));
+        ModelNode enableOp = legacy ? Util.getEmptyOperation(AbstractHandlerDefinition.ENABLE_HANDLER.getName(), handlerAddress)
+                : SubsystemOperations.createWriteAttributeOperation(handlerAddress, CommonAttributes.ENABLED, true);
+        executeOperation(kernelServices, enableOp);
+
+        // The operation should set the enabled attribute to true
+        result = executeOperation(kernelServices, readOp);
+        assertTrue("enabled attribute should be true when the enable operation is invoked", SubsystemOperations.readResult(result).asBoolean());
 
         // Log 3 more lines
         logger.info("Test message 7");
@@ -525,6 +510,7 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
         op.get(CommonAttributes.NAME.getName()).set(name);
         op.get(CommonAttributes.LEVEL.getName()).set(level.getName());
         op.get(CommonAttributes.FILE.getName()).get(PathResourceDefinition.PATH.getName()).set(file.getAbsolutePath());
+        op.get(CommonAttributes.AUTOFLUSH.getName()).set(true);
         executeOperation(kernelServices, op);
 
         if (!assign) return;
@@ -557,13 +543,6 @@ public class LoggingOperationsSubsystemTestCase extends AbstractLoggingSubsystem
     private ModelNode executeOperation(final KernelServices kernelServices, final ModelNode op, final boolean validateResult) {
         final ModelNode result = kernelServices.executeOperation(op);
         if (validateResult) assertTrue(SubsystemOperations.getFailureDescriptionAsString(result), SubsystemOperations.isSuccessfulOutcome(result));
-        return result;
-    }
-
-    private static ModelNode executeTransformOperation(final KernelServices kernelServices, final ModelVersion modelVersion, final ModelNode op) throws OperationFailedException {
-        TransformedOperation transformedOp = kernelServices.transformOperation(modelVersion, op);
-        ModelNode result = kernelServices.executeOperation(modelVersion, transformedOp);
-        Assert.assertTrue(result.asString(), SubsystemOperations.isSuccessfulOutcome(result));
         return result;
     }
 

@@ -21,7 +21,13 @@
 */
 package org.jboss.as.clustering.infinispan.subsystem;
 
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.NAME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OUTCOME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RESULT;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUCCESS;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.VALUE;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.WRITE_ATTRIBUTE_OPERATION;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,7 +36,10 @@ import org.jboss.as.controller.AttributeDefinition;
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
+import org.jboss.as.controller.operations.common.Util;
+import org.jboss.as.controller.transform.OperationTransformer;
 import org.jboss.as.model.test.FailedOperationTransformationConfig;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
 import org.jboss.as.subsystem.test.KernelServices;
@@ -65,23 +74,28 @@ public class InfinispanSubsystemTransformerTestCase extends OperationTestCaseBas
 
     @Test
     public void testTransformer712() throws Exception {
-        testTransformer_1_3_0("7.1.2.Final");
+        testTransformer_1_3_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformer713() throws Exception {
-        testTransformer_1_3_0("7.1.3.Final");
+        testTransformer_1_3_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformer_1_3_0(String asVersion) throws Exception {
+    private void testTransformer_1_3_0(ModelTestControllerVersion controllerVersion) throws Exception {
         ModelVersion version = ModelVersion.create(1, 3);
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT)
                 .setSubsystemXml(getSubsystemXml());
-        builder.createLegacyKernelServicesBuilder(null, version)
-            .addMavenResourceURL("org.jboss.as:jboss-as-clustering-infinispan:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, version)
+            .addMavenResourceURL("org.jboss.as:jboss-as-clustering-infinispan:" + controllerVersion.getMavenGavVersion())
+            //TODO storing the model triggers the weirdness mentioned in SubsystemTestDelegate.LegacyKernelServiceInitializerImpl.install()
+            //which is strange since it should be loading it all from the current jboss modules
+            //Also this works in several other tests
+            .dontPersistXml();
 
         KernelServices mainServices = builder.build();
-        Assert.assertTrue("main services did not boot", mainServices.isSuccessfulBoot()); ;
+        Assert.assertTrue("main services did not boot", mainServices.isSuccessfulBoot());
+        Assert.assertTrue(mainServices.getLegacyServices(version).isSuccessfulBoot());
 
         checkSubsystemModelTransformation(mainServices, version);
 
@@ -95,22 +109,26 @@ public class InfinispanSubsystemTransformerTestCase extends OperationTestCaseBas
 
     @Test
     public void testRejectExpressions712() throws Exception {
-        testRejectExpressions_1_3_0("7.1.2.Final");
+        testRejectExpressions_1_3_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testRejectExpressions713() throws Exception {
-        testRejectExpressions_1_3_0("7.1.3.Final");
+        testRejectExpressions_1_3_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    public void testRejectExpressions_1_3_0(String asVersion) throws Exception {
+    public void testRejectExpressions_1_3_0(ModelTestControllerVersion controllerVersion) throws Exception {
         // create builder for current subsystem version
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
         // create builder for legacy subsystem version
         ModelVersion version_1_3_0 = ModelVersion.create(1, 3, 0);
-        builder.createLegacyKernelServicesBuilder(null, version_1_3_0)
-            .addMavenResourceURL("org.jboss.as:jboss-as-clustering-infinispan:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, version_1_3_0)
+            .addMavenResourceURL("org.jboss.as:jboss-as-clustering-infinispan:" + controllerVersion.getMavenGavVersion())
+            //TODO storing the model triggers the weirdness mentioned in SubsystemTestDelegate.LegacyKernelServiceInitializerImpl.install()
+            //which is strange since it should be loading it all from the current jboss modules
+            //Also this works in several other tests
+            .dontPersistXml();
 
         KernelServices mainServices = builder.build();
         KernelServices legacyServices = mainServices.getLegacyServices(version_1_3_0);
@@ -122,6 +140,49 @@ public class InfinispanSubsystemTransformerTestCase extends OperationTestCaseBas
 
         ModelTestUtils.checkFailedTransformedBootOperations(mainServices, version_1_3_0, xmlOps, getConfig());
     }
+
+    @Test
+    public void testVirtualNodesTo140() throws Exception {
+        ModelVersion version140 = ModelVersion.create(1, 4);
+        // create builder for current subsystem version
+        KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
+        builder.createLegacyKernelServicesBuilder(null, ModelTestControllerVersion.MASTER, version140)
+                .addMavenResourceURL("org.jboss.as:jboss-as-clustering-infinispan:7.2.0.Final");
+
+        KernelServices mainServices = builder.build();
+        KernelServices legacyServices = mainServices.getLegacyServices(version140);
+        Assert.assertNotNull(legacyServices);
+        Assert.assertTrue("main services did not boot", mainServices.isSuccessfulBoot());
+        Assert.assertTrue(legacyServices.isSuccessfulBoot());
+
+        PathAddress pa = PathAddress.pathAddress(PathElement.pathElement(SUBSYSTEM, InfinispanExtension.SUBSYSTEM_NAME),
+                PathElement.pathElement(CacheContainerResource.CONTAINER_PATH.getKey(), "container"),
+                PathElement.pathElement(DistributedCacheResource.DISTRIBUTED_CACHE_PATH.getKey(), "cache"));
+        ModelNode addOp = Util.createAddOperation(pa);
+        addOp.get(DistributedCacheResource.VIRTUAL_NODES.getName()).set(1);
+
+        OperationTransformer.TransformedOperation transformedOperation = mainServices.transformOperation(version140, addOp);
+        Assert.assertFalse(transformedOperation.getTransformedOperation().has(DistributedCacheResource.VIRTUAL_NODES.getName()));
+        Assert.assertEquals(6, transformedOperation.getTransformedOperation().get(DistributedCacheResource.SEGMENTS.getName()).asInt());
+
+        ModelNode result = new ModelNode();
+        result.get(OUTCOME).set(SUCCESS);
+        result.get(RESULT);
+        Assert.assertFalse(transformedOperation.rejectOperation(result));
+        Assert.assertEquals(result, transformedOperation.transformResult(result));
+
+        ModelNode writeOp = Util.createEmptyOperation(WRITE_ATTRIBUTE_OPERATION, pa);
+        writeOp.get(NAME).set(DistributedCacheResource.VIRTUAL_NODES.getName());
+        writeOp.get(VALUE).set(1);
+
+        transformedOperation = mainServices.transformOperation(version140, writeOp);
+        Assert.assertEquals(DistributedCacheResource.SEGMENTS.getName(), transformedOperation.getTransformedOperation().get(NAME).asString());
+        Assert.assertEquals(6, transformedOperation.getTransformedOperation().get(VALUE).asInt());
+        Assert.assertFalse(transformedOperation.rejectOperation(result));
+        Assert.assertEquals(result, transformedOperation.transformResult(result));
+
+    }
+
 
     /**
      * Constructs a FailedOperationTransformationConfig which describes all attributes which should accept expressions

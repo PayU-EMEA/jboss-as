@@ -188,6 +188,8 @@ public enum Phase {
     public static final int STRUCTURE_MOUNT                             = 0x0200;
     public static final int STRUCTURE_MANIFEST                          = 0x0300;
     public static final int STRUCTURE_OSGI_MANIFEST                     = 0x0400;
+    public static final int STRUCTURE_OSGI_METADATA                     = 0x0420;
+    public static final int STRUCTURE_OSGI_WEBBUNDLE                    = 0x0430;
     public static final int STRUCTURE_REMOUNT_EXPLODED                  = 0x0450;
     public static final int STRUCTURE_EE_SPEC_DESC_PROPERTY_REPLACEMENT = 0x0500;
     public static final int STRUCTURE_EE_JBOSS_DESC_PROPERTY_REPLACEMENT= 0x0550;
@@ -266,8 +268,10 @@ public enum Phase {
     public static final int PARSE_JAXRPC_EJB_INTEGRATION                = 0x2054;
     public static final int PARSE_JAXWS_HANDLER_CHAIN_ANNOTATION        = 0x2055;
     public static final int PARSE_WS_JMS_INTEGRATION                    = 0x2056;
-    public static final int PARSE_JAXWS_ENDPOINT_CREATE_COMPONENT_DESCRIPTIONS = 0x2057;
-    public static final int PARSE_JAXWS_HANDLER_CREATE_COMPONENT_DESCRIPTIONS = 0x2058;
+    public static final int PARSE_XTS_SOAP_HANDLERS                     = 0x2057;
+    public static final int PARSE_JAXWS_ENDPOINT_CREATE_COMPONENT_DESCRIPTIONS = 0x2058;
+    public static final int PARSE_XTS_COMPONENT_INTERCEPTORS            = 0x2059;
+    public static final int PARSE_JAXWS_HANDLER_CREATE_COMPONENT_DESCRIPTIONS = 0x2060;
     public static final int PARSE_RA_DEPLOYMENT                         = 0x2100;
     public static final int PARSE_SERVICE_LOADER_DEPLOYMENT             = 0x2200;
     public static final int PARSE_SERVICE_DEPLOYMENT                    = 0x2300;
@@ -419,6 +423,8 @@ public enum Phase {
     public static final int POST_MODULE_CMP_STORE_MANAGER               = 0x2500;
     public static final int POST_MODULE_EJB_IIOP                        = 0x2600;
     public static final int POST_MODULE_POJO                            = 0x2700;
+    public static final int POST_MODULE_IN_APP_CLIENT                   = 0x2780;
+    public static final int POST_MODULE_EE_INSTANCE_NAME                = 0x2790;
     public static final int POST_MODULE_NAMING_CONTEXT                  = 0x2800;
     public static final int POST_MODULE_APP_NAMING_CONTEXT              = 0x2900;
     public static final int POST_MODULE_CACHED_CONNECTION_MANAGER       = 0x2A00;

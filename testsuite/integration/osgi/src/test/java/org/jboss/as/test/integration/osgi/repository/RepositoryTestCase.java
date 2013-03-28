@@ -101,7 +101,7 @@ public class RepositoryTestCase {
             try {
                 bundle.start();
                 Assert.assertEquals(Bundle.ACTIVE, bundle.getState());
-                ServiceReference sref = context.getServiceReference("org.osgi.service.event.EventAdmin");
+                ServiceReference<?> sref = context.getServiceReference("org.osgi.service.event.EventAdmin");
                 assertNotNull("EventAdmin service not null", sref);
             } finally {
                 bundle.uninstall();

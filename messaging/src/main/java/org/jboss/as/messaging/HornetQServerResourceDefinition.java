@@ -63,7 +63,6 @@ import static org.jboss.as.messaging.CommonAttributes.PERSISTENCE_ENABLED;
 import static org.jboss.as.messaging.CommonAttributes.PERSIST_DELIVERY_COUNT_BEFORE_DELIVERY;
 import static org.jboss.as.messaging.CommonAttributes.PERSIST_ID_CACHE;
 import static org.jboss.as.messaging.CommonAttributes.REMOTING_INCOMING_INTERCEPTORS;
-import static org.jboss.as.messaging.CommonAttributes.REMOTING_INTERCEPTORS;
 import static org.jboss.as.messaging.CommonAttributes.REPLICATION_CLUSTERNAME;
 import static org.jboss.as.messaging.CommonAttributes.REMOTING_OUTGOING_INTERCEPTORS;
 import static org.jboss.as.messaging.CommonAttributes.RUN_SYNC_SPEED_TEST;
@@ -79,7 +78,6 @@ import java.util.Locale;
 
 import org.jboss.as.controller.AttributeDefinition;
 import org.jboss.as.controller.PathElement;
-import org.jboss.as.controller.ResourceDefinition;
 import org.jboss.as.controller.SimpleResourceDefinition;
 import org.jboss.as.controller.descriptions.DefaultResourceDescriptionProvider;
 import org.jboss.as.controller.descriptions.DescriptionProvider;
@@ -89,7 +87,7 @@ import org.jboss.as.messaging.jms.JMSServerControlHandler;
 import org.jboss.dmr.ModelNode;
 
 /**
- * {@link ResourceDefinition} for the messaging subsystem HornetQServer resource.
+ * {@link org.jboss.as.controller.ResourceDefinition} for the messaging subsystem HornetQServer resource.
  *
  * @author Brian Stansberry (c) 2011 Red Hat Inc.
  */

@@ -22,11 +22,6 @@
 
 package org.jboss.as.jpa.processor;
 
-import static org.jboss.as.jpa.JpaLogger.JPA_LOGGER;
-import static org.jboss.as.jpa.JpaLogger.ROOT_LOGGER;
-import static org.jboss.as.jpa.JpaMessages.MESSAGES;
-import static org.jboss.as.server.Services.addServerExecutorDependency;
-
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -55,6 +50,7 @@ import org.jboss.as.ee.structure.DeploymentTypeMarker;
 import org.jboss.as.jpa.config.Configuration;
 import org.jboss.as.jpa.config.PersistenceProviderDeploymentHolder;
 import org.jboss.as.jpa.config.PersistenceUnitMetadataHolder;
+import org.jboss.as.jpa.interceptor.WebNonTxEmCloserAction;
 import org.jboss.as.jpa.persistenceprovider.PersistenceProviderLoader;
 import org.jboss.as.jpa.service.JPAService;
 import org.jboss.as.jpa.service.PersistenceUnitServiceImpl;
@@ -81,10 +77,8 @@ import org.jboss.as.server.deployment.DeploymentUtils;
 import org.jboss.as.server.deployment.JPADeploymentMarker;
 import org.jboss.as.server.deployment.SubDeploymentMarker;
 import org.jboss.as.server.deployment.module.ResourceRoot;
-import org.jboss.as.web.deployment.WarMetaData;
 import org.jboss.dmr.ModelNode;
 import org.jboss.jandex.Index;
-import org.jboss.metadata.web.jboss.ValveMetaData;
 import org.jboss.modules.Module;
 import org.jboss.modules.ModuleClassLoader;
 import org.jboss.modules.ModuleLoadException;
@@ -97,6 +91,11 @@ import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceRegistryException;
 import org.jboss.msc.service.ServiceTarget;
 import org.jboss.msc.value.ImmediateValue;
+
+import static org.jboss.as.jpa.JpaLogger.JPA_LOGGER;
+import static org.jboss.as.jpa.JpaLogger.ROOT_LOGGER;
+import static org.jboss.as.jpa.JpaMessages.MESSAGES;
+import static org.jboss.as.server.Services.addServerExecutorDependency;
 
 /**
  * Handle the installation of the Persistence Unit service
@@ -171,19 +170,10 @@ public class PersistenceUnitServiceHandler {
                 }
             }
 
-            // Add EM valve
-            final WarMetaData warMetaData = deploymentUnit.getAttachment(WarMetaData.ATTACHMENT_KEY);
-            if (warMetaData != null && warMetaData.getMergedJBossWebMetaData() != null) {
-                List<ValveMetaData> valves = warMetaData.getMergedJBossWebMetaData().getValves();
-                if (valves == null) {
-                    valves = new ArrayList<ValveMetaData>();
-                    warMetaData.getMergedJBossWebMetaData().setValves(valves);
-                }
-                ValveMetaData valve = new ValveMetaData();
-                valve.setModule("org.jboss.as.jpa");
-                valve.setValveClass("org.jboss.as.jpa.interceptor.WebNonTxEmCloserValve");
-                valves.add(valve);
+            if (startEarly) { // only add the WebNonTxEmCloserAction valve on the earlier invocation (AS7-6690).
+                deploymentUnit.addToAttachmentList(org.jboss.as.ee.component.Attachments.WEB_SETUP_ACTIONS, new WebNonTxEmCloserAction());
             }
+
             JPA_LOGGER.tracef("install persistence unit definitions for war %s", deploymentRoot.getRootName());
             addPuService(phaseContext, puList, startEarly);
         }
@@ -285,9 +275,10 @@ public class PersistenceUnitServiceHandler {
     private static void deployPersistenceUnit(DeploymentPhaseContext phaseContext, DeploymentUnit deploymentUnit, EEModuleDescription eeModuleDescription, Collection<ComponentDescription> components, ServiceTarget serviceTarget, ModuleClassLoader classLoader, PersistenceProviderDeploymentHolder persistenceProviderDeploymentHolder, PersistenceUnitMetadata pu, boolean startEarly) throws DeploymentUnitProcessingException {
         pu.setClassLoader(classLoader);
         try {
+            SerializableValidatorFactory validatorFactory = null;
             final HashMap<String, ValidatorFactory> properties = new HashMap<String, ValidatorFactory>();
             if (!ValidationMode.NONE.equals(pu.getValidationMode())) {
-                ValidatorFactory validatorFactory = SerializableValidatorFactory.validatorFactory();
+                validatorFactory = SerializableValidatorFactory.validatorFactory();
                 properties.put("javax.persistence.validation.factory", validatorFactory);
             }
             final PersistenceProviderAdaptor adaptor = getPersistenceProviderAdaptor(pu, persistenceProviderDeploymentHolder, deploymentUnit);
@@ -313,7 +304,7 @@ public class PersistenceUnitServiceHandler {
 
             final PersistenceUnitServiceImpl service = new PersistenceUnitServiceImpl(classLoader, pu, adaptor, provider, PersistenceUnitRegistryImpl.INSTANCE, deploymentUnit.getServiceName());
 
-            deploymentUnit.addToAttachmentList(REMOVAL_KEY, new PersistenceAdaptorRemoval(pu, adaptor));
+            deploymentUnit.addToAttachmentList(REMOVAL_KEY, new PersistenceAdaptorRemoval(validatorFactory, pu, adaptor));
 
             // add persistence provider specific properties
             adaptor.addProviderProperties(properties, pu);
@@ -736,16 +727,21 @@ public class PersistenceUnitServiceHandler {
     }
 
     private static class PersistenceAdaptorRemoval {
+        final SerializableValidatorFactory validatorFactory;
         final PersistenceUnitMetadata pu;
         final PersistenceProviderAdaptor adaptor;
 
-        public PersistenceAdaptorRemoval(PersistenceUnitMetadata pu, PersistenceProviderAdaptor adaptor) {
+        public PersistenceAdaptorRemoval(final SerializableValidatorFactory validatorFactory, PersistenceUnitMetadata pu, PersistenceProviderAdaptor adaptor) {
+            this.validatorFactory = validatorFactory;
             this.pu = pu;
             this.adaptor = adaptor;
         }
 
         private void cleanup() {
             adaptor.cleanup(pu);
+            if (validatorFactory != null) {
+                validatorFactory.clean();
+            }
         }
     }
 

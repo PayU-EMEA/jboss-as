@@ -41,7 +41,7 @@ import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.DeploymentUnitProcessor;
 import org.jboss.as.server.deployment.annotation.CompositeIndex;
-import org.jboss.as.web.deployment.WarMetaData;
+import org.jboss.as.web.common.WarMetaData;
 import org.jboss.jandex.AnnotationInstance;
 import org.jboss.jandex.ClassInfo;
 import org.jboss.jandex.DotName;
@@ -191,31 +191,17 @@ public class JaxrsScanningProcessor implements DeploymentUnitProcessor {
             return;
         }
 
-        final Set<ClassInfo> applicationClass = index.getAllKnownSubclasses(APPLICATION);
-        try {
-            if (applicationClass.size() > 1) {
-                StringBuilder builder = new StringBuilder();
-                Set<ClassInfo> aClasses = new HashSet<ClassInfo>();
-                for (ClassInfo c : applicationClass) {
-                    if (!Modifier.isAbstract(c.flags())) {
-                        aClasses.add(c);
-                    }
-                    builder.append(" ").append(c.name().toString());
+        if (!resteasyDeploymentData.isDispatcherCreated()) {
+            final Set<ClassInfo> applicationClasses = index.getAllKnownSubclasses(APPLICATION);
+            try {
+                for (ClassInfo c : applicationClasses) {
+                    if (Modifier.isAbstract(c.flags())) continue;
+                    Class<? extends Application> scanned = (Class<? extends Application>) classLoader.loadClass(c.name().toString());
+                    resteasyDeploymentData.getScannedApplicationClasses().add(scanned);
                 }
-                if (aClasses.size() > 1) {
-                    throw new DeploymentUnitProcessingException(MESSAGES.onlyOneApplicationClassAllowed(builder));
-                } else if (aClasses.size() == 1) {
-                    ClassInfo aClass = applicationClass.iterator().next();
-                    resteasyDeploymentData.setScannedApplicationClass((Class<? extends Application>) classLoader
-                            .loadClass(aClass.name().toString()));
-                }
-            } else if (applicationClass.size() == 1) {
-                ClassInfo aClass = applicationClass.iterator().next();
-                resteasyDeploymentData.setScannedApplicationClass((Class<? extends Application>) classLoader
-                        .loadClass(aClass.name().toString()));
+            } catch (ClassNotFoundException e) {
+                throw MESSAGES.cannotLoadApplicationClass(e);
             }
-        } catch (ClassNotFoundException e) {
-            throw MESSAGES.cannotLoadApplicationClass(e);
         }
 
         List<AnnotationInstance> resources = null;

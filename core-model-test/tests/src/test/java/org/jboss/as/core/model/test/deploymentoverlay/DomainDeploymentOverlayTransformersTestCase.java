@@ -29,21 +29,21 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import junit.framework.Assert;
-
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.core.model.test.AbstractCoreModelTest;
 import org.jboss.as.core.model.test.KernelServices;
 import org.jboss.as.core.model.test.KernelServicesBuilder;
 import org.jboss.as.core.model.test.LegacyKernelServicesInitializer;
-import org.jboss.as.core.model.test.LegacyKernelServicesInitializer.TestControllerVersion;
 import org.jboss.as.core.model.test.TestModelType;
+import org.jboss.as.core.model.test.util.ExcludeCommonOperations;
 import org.jboss.as.core.model.test.util.StandardServerGroupInitializers;
 import org.jboss.as.core.model.test.util.TransformersTestParameters;
 import org.jboss.as.host.controller.ignored.IgnoreDomainResourceTypeResource;
 import org.jboss.as.model.test.ModelFixer;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.dmr.ModelNode;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -57,7 +57,7 @@ import org.junit.runners.Parameterized.Parameters;
 public class DomainDeploymentOverlayTransformersTestCase extends AbstractCoreModelTest {
 
     private final ModelVersion modelVersion;
-    private final TestControllerVersion testControllerVersion;
+    private final ModelTestControllerVersion testControllerVersion;
 
     @Parameters
     public static List<Object[]> parameters(){
@@ -100,7 +100,9 @@ public class DomainDeploymentOverlayTransformersTestCase extends AbstractCoreMod
         StandardServerGroupInitializers.addServerGroupInitializers(
                     builder.createLegacyKernelServicesBuilder(modelVersion, testControllerVersion)
                 )
-                .setDontUseBootOperations();
+                .setDontUseBootOperations()
+                //Since the legacy controller does not know about deployment overlays, there will be not boot ops for the reverse check
+                .skipReverseControllerCheck();
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());
@@ -131,7 +133,9 @@ public class DomainDeploymentOverlayTransformersTestCase extends AbstractCoreMod
         StandardServerGroupInitializers.addServerGroupInitializers(
                     builder.createLegacyKernelServicesBuilder(modelVersion, testControllerVersion)
                 )
-                .setDontUseBootOperations();
+                .setDontUseBootOperations()
+                //Since the legacy controller does not know about deployment overlays, there will be not boot ops for the reverse check
+                .skipReverseControllerCheck();
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());
@@ -162,7 +166,10 @@ public class DomainDeploymentOverlayTransformersTestCase extends AbstractCoreMod
         StandardServerGroupInitializers.addServerGroupInitializers(
                     builder.createLegacyKernelServicesBuilder(modelVersion, testControllerVersion)
                 )
-                .setDontUseBootOperations();
+                .setDontUseBootOperations()
+                //Since the legacy controller does not know about deployment overlays, there will be not boot ops for the reverse check
+                .skipReverseControllerCheck();
+
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());
@@ -215,7 +222,7 @@ public class DomainDeploymentOverlayTransformersTestCase extends AbstractCoreMod
     }
     private void testDeploymentOverlaysTransformer_7_1_x(ModelVersion modelVersion, KernelServicesBuilder builder, LegacyKernelServicesInitializer legacyInitializer) throws Exception {
         //Don't validate ops since they definitely won't exist in target controller
-        legacyInitializer.setDontValidateOperations();
+        ExcludeCommonOperations.excludeBadOps_7_1_x(legacyInitializer);
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());

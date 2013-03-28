@@ -22,7 +22,12 @@
 
 package org.jboss.as.connector.subsystems.resourceadapters;
 
-import java.util.Collections;
+import static org.jboss.as.connector.subsystems.resourceadapters.Constants.ARCHIVE;
+import static org.jboss.as.connector.subsystems.resourceadapters.Constants.MODULE;
+import static org.jboss.as.connector.subsystems.resourceadapters.Constants.RESOURCEADAPTERS_NAME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
+
 import java.util.LinkedList;
 import java.util.List;
 
@@ -36,12 +41,6 @@ import org.jboss.as.controller.operations.common.Util;
 import org.jboss.dmr.ModelNode;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceName;
-
-import static org.jboss.as.connector.subsystems.resourceadapters.Constants.ARCHIVE;
-import static org.jboss.as.connector.subsystems.resourceadapters.Constants.MODULE;
-import static org.jboss.as.connector.subsystems.resourceadapters.Constants.RESOURCEADAPTERS_NAME;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 
 /**
  * @author @author <a href="mailto:stefano.maestri@redhat.com">Stefano
@@ -78,7 +77,7 @@ public class RaRemove implements OperationStepHandler {
         context.addStep(new OperationStepHandler() {
             public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
 
-                final boolean wasActive = RaOperationUtil.deactivateIfActive(context, name);
+                final boolean wasActive = RaOperationUtil.removeIfActive(context, name);
                 ServiceName raServiceName = ServiceName.of(ConnectorServices.RA_SERVICE, name);
                 ServiceController<?> serviceController =  context.getServiceRegistry(false).getService(raServiceName);
                 final ModifiableResourceAdapter resourceAdapter;
@@ -121,7 +120,7 @@ public class RaRemove implements OperationStepHandler {
                             }
                             try {
                                 if (wasActive)
-                                    RaOperationUtil.activate(context, archiveOrModuleName, archiveOrModuleName, null);
+                                    RaOperationUtil.activate(context, archiveOrModuleName, null);
                             } catch (OperationFailedException e) {
 
                             }

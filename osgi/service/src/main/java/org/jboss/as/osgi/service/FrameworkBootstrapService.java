@@ -51,7 +51,6 @@ import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceContainer;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceController.Mode;
-import org.jboss.msc.service.ServiceListener.Inheritance;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceTarget;
 import org.jboss.msc.service.StartContext;
@@ -88,7 +87,7 @@ public class FrameworkBootstrapService implements Service<Void> {
         ServiceBuilder<Void> builder = target.addService(FrameworkBootstrapService.SERVICE_NAME, service);
         builder.addDependency(ServerEnvironmentService.SERVICE_NAME, ServerEnvironment.class, service.injectedServerEnvironment);
         builder.addDependency(OSGiConstants.SUBSYSTEM_STATE_SERVICE_NAME, SubsystemState.class, service.injectedSubsystemState);
-        builder.addListener(Inheritance.ONCE, verificationHandler);
+        builder.addListener(verificationHandler);
         return builder.install();
     }
 
@@ -108,7 +107,7 @@ public class FrameworkBootstrapService implements Service<Void> {
 
             // Setup the OSGi {@link Framework} properties
             SubsystemState subsystemState = injectedSubsystemState.getValue();
-            Map<String, Object> props = new HashMap<String, Object>(subsystemState.getProperties());
+            Map<String, String> props = new HashMap<String, String>(subsystemState.getProperties());
             setupIntegrationProperties(context, props);
 
             // Register the URLStreamHandlerFactory
@@ -118,7 +117,6 @@ public class FrameworkBootstrapService implements Service<Void> {
 
             ServiceTarget serviceTarget = context.getChildTarget();
             JAXPServiceProvider.addService(serviceTarget);
-            ResolverService.addService(serviceTarget);
             RepositoryService.addService(serviceTarget);
 
             Activation activation = subsystemState.getActivationPolicy();
@@ -136,6 +134,11 @@ public class FrameworkBootstrapService implements Service<Void> {
             builder.registerIntegrationService(FrameworkPhase.CREATE, new SystemServicesIntegration(resource, extensions));
             builder.registerIntegrationService(FrameworkPhase.INIT, new BootstrapBundlesIntegration());
             builder.registerIntegrationService(FrameworkPhase.INIT, new PersistentBundlesIntegration(deploymentTracker));
+
+            // Add integration services from the extensions
+            for(SubsystemExtension extension : extensions) {
+                extension.registerIntegrationServices(builder, subsystemState);
+            }
 
             // Install the services to create the framework
             builder.installServices(FrameworkPhase.CREATE, serviceTarget, verificationHandler);
@@ -164,7 +167,7 @@ public class FrameworkBootstrapService implements Service<Void> {
         return null;
     }
 
-    private void setupIntegrationProperties(StartContext context, Map<String, Object> props) {
+    private void setupIntegrationProperties(StartContext context, Map<String, String> props) {
 
         // Setup the Framework's storage area.
         String storage = (String) props.get(Constants.FRAMEWORK_STORAGE);
@@ -209,7 +212,7 @@ public class FrameworkBootstrapService implements Service<Void> {
     }
 
     // [TODO] Remove this hack when the TCK setup can configure the subsystem properly
-    Object getPropertyWithSystemFallback(Map<String, Object> props, String key) {
+    Object getPropertyWithSystemFallback(Map<String, String> props, String key) {
         Object value = props.get(key);
         if (value == null) {
             value = SecurityActions.getSystemProperty(key);

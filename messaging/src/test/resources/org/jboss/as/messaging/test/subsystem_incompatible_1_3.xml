@@ -1,6 +1,7 @@
 
     <subsystem xmlns="urn:jboss:domain:messaging:1.3">
         <hornetq-server>
+            <clustered>true</clustered>
             <!-- disable messaging persistence -->
             <persistence-enabled>${persistence.enabled:false}</persistence-enabled>
             <scheduled-thread-pool-max-size>${messaging.scheduled.thread.pool.max.size:6}</scheduled-thread-pool-max-size>
@@ -342,6 +343,13 @@
 				 <group-id>${group.id:myGroup}</group-id>
               </connection-factory>
               <pooled-connection-factory name="hornetq-ra">
+                 <inbound-config>
+                     <use-jndi>${use.jndi:false}</use-jndi>
+                     <jndi-params>${jndi.params:whatever}</jndi-params>
+                     <use-local-tx>${use.local.tx:true}</use-local-tx>
+                     <setup-attempts>${setup-attempts:123}</setup-attempts>
+                     <setup-interval>${setup-interval:456}</setup-interval>
+                 </inbound-config>
                  <transaction mode="${transaction:xa}"/>
                  <user>${user:alice}</user>
                  <password>${password:alicepassword}</password>

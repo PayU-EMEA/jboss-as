@@ -24,22 +24,15 @@ package org.jboss.as.webservices.publish;
 import static org.jboss.as.webservices.WSMessages.MESSAGES;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javax.naming.NamingException;
 
-import org.apache.catalina.Container;
-import org.apache.catalina.Host;
-import org.apache.catalina.LifecycleException;
-import org.apache.catalina.Loader;
-import org.apache.catalina.Wrapper;
-import org.apache.catalina.core.StandardContext;
-import org.apache.catalina.startup.ContextConfig;
-import org.apache.tomcat.InstanceManager;
-import org.jboss.as.web.deployment.WebCtxLoader;
+import org.jboss.as.web.host.ServletBuilder;
+import org.jboss.as.web.host.WebDeploymentController;
+import org.jboss.as.web.host.WebDeploymentBuilder;
+import org.jboss.as.web.host.WebHost;
 import org.jboss.as.webservices.deployers.EndpointServiceDeploymentAspect;
 import org.jboss.as.webservices.deployers.deployment.DeploymentAspectsProvider;
 import org.jboss.as.webservices.deployers.deployment.WSDeploymentBuilder;
@@ -72,15 +65,15 @@ import org.jboss.wsf.spi.publish.EndpointPublisher;
  */
 public final class EndpointPublisherImpl implements EndpointPublisher {
 
-    private Host host;
+   private WebHost host;
     private boolean runningInService = false;
     private static List<DeploymentAspect> depAspects = null;
 
-    public EndpointPublisherImpl(Host host) {
+    public EndpointPublisherImpl(WebHost host) {
         this.host = host;
     }
 
-    public EndpointPublisherImpl(Host host, boolean runningInService) {
+    public EndpointPublisherImpl(WebHost host, boolean runningInService) {
         this(host);
         this.runningInService = runningInService;
     }
@@ -134,69 +127,64 @@ public final class EndpointPublisherImpl implements EndpointPublisher {
             SecurityActions.setContextClassLoader(origClassLoader);
         }
         Deployment deployment = unit.getAttachment(WSAttachmentKeys.DEPLOYMENT_KEY);
-        deployment.addAttachment(StandardContext.class, startWebApp(host, unit)); //TODO simplify and use findChild later in destroy()/stopWebApp()
+        deployment.addAttachment(WebDeploymentController.class, startWebApp(host, unit)); //TODO simplify and use findChild later in destroy()/stopWebApp()
         return deployment.getService().getEndpoints();
     }
 
-    private static StandardContext startWebApp(Host host, WSEndpointDeploymentUnit unit) throws Exception {
-        StandardContext context = new StandardContext();
+    private static WebDeploymentController startWebApp(WebHost host, WSEndpointDeploymentUnit unit) throws Exception {
+        WebDeploymentBuilder deployment = new WebDeploymentBuilder();
+        WebDeploymentController handle;
         try {
             JBossWebMetaData jbwebMD = unit.getAttachment(WSAttachmentKeys.JBOSSWEB_METADATA_KEY);
-            context.setPath(jbwebMD.getContextRoot());
-            context.addLifecycleListener(new ContextConfig());
+            deployment.setContextRoot(jbwebMD.getContextRoot());
             ServerConfigService config = (ServerConfigService)unit.getServiceRegistry().getService(WSServices.CONFIG_SERVICE).getService();
             File docBase = new File(config.getValue().getServerTempDir(), jbwebMD.getContextRoot());
             if (!docBase.exists()) {
                 docBase.mkdirs();
             }
-            context.setDocBase(docBase.getPath());
+            deployment.setDocumentRoot(docBase);
+            deployment.setClassLoader(unit.getAttachment(WSAttachmentKeys.CLASSLOADER_KEY));
 
-            final Loader loader = new WebCtxLoader(unit.getAttachment(WSAttachmentKeys.CLASSLOADER_KEY));
-            loader.setContainer(host);
-            context.setLoader(loader);
-            context.setInstanceManager(new LocalInstanceManager());
+            addServlets(jbwebMD, deployment);
 
-            addServlets(jbwebMD, context);
-
-            host.addChild(context);
-            context.create();
+            handle = host.addWebDeployment(deployment);
+            handle.create();
         } catch (Exception e) {
             throw MESSAGES.createContextPhaseFailed(e);
         }
         try {
-            context.start();
-        } catch (LifecycleException e) {
+            handle.start();
+        } catch (Exception e) {
             throw MESSAGES.startContextPhaseFailed(e);
         }
-        return context;
+        return handle;
     }
 
-    private static void addServlets(JBossWebMetaData jbwebMD, StandardContext context) {
+    private static void addServlets(JBossWebMetaData jbwebMD, WebDeploymentBuilder deployment) {
         for (JBossServletMetaData smd : jbwebMD.getServlets()) {
             final String sc = smd.getServletClass();
             if (sc.equals(WSFServlet.class.getName())) {
+                ServletBuilder servletBuilder = new ServletBuilder();
                 final String servletName = smd.getServletName();
+
                 List<ParamValueMetaData> params = smd.getInitParam();
                 List<String> urlPatterns = null;
                 for (ServletMappingMetaData smmd : jbwebMD.getServletMappings()) {
                     if (smmd.getServletName().equals(servletName)) {
                         urlPatterns = smmd.getUrlPatterns();
+                        servletBuilder.addUrlMappings(urlPatterns);
                         break;
                     }
                 }
 
                 WSFServlet wsfs = new WSFServlet();
-                Wrapper wsfsWrapper = context.createWrapper();
-                wsfsWrapper.setName(servletName);
-                wsfsWrapper.setServlet(wsfs);
-                wsfsWrapper.setServletClass(WSFServlet.class.getName());
+                servletBuilder.setServletName(servletName);
+                servletBuilder.setServlet(wsfs);
+                servletBuilder.setServletClass(WSFServlet.class);
                 for (ParamValueMetaData param : params) {
-                    wsfsWrapper.addInitParameter(param.getParamName(), param.getParamValue());
+                    servletBuilder.addInitParam(param.getParamName(), param.getParamValue());
                 }
-                context.addChild(wsfsWrapper);
-                for (String urlPattern : urlPatterns) {
-                    context.addServletMapping(urlPattern, servletName);
-                }
+                deployment.addServlet(servletBuilder);
             }
         }
     }
@@ -210,7 +198,7 @@ public final class EndpointPublisherImpl implements EndpointPublisher {
         Deployment deployment = eps.get(0).getService().getDeployment();
         List<DeploymentAspect> aspects = getDeploymentAspects();
         try {
-            stopWebApp(deployment.getAttachment(StandardContext.class));
+            stopWebApp(deployment.getAttachment(WebDeploymentController.class));
         } finally {
             ClassLoader origClassLoader = SecurityActions.getContextClassLoader();
             try {
@@ -224,12 +212,10 @@ public final class EndpointPublisherImpl implements EndpointPublisher {
         }
     }
 
-    private static void stopWebApp(StandardContext context) throws Exception {
+    private static void stopWebApp(WebDeploymentController context) throws Exception {
         try {
-            Container container = context.getParent();
-            container.removeChild(context);
             context.stop();
-        } catch (LifecycleException e) {
+        } catch (Exception e) {
             throw MESSAGES.stopContextPhaseFailed(e);
         }
         try {
@@ -262,31 +248,4 @@ public final class EndpointPublisherImpl implements EndpointPublisher {
         return depAspects;
     }
 
-    private static class LocalInstanceManager implements InstanceManager {
-        LocalInstanceManager() {
-        }
-        @Override
-        public Object newInstance(String className) throws IllegalAccessException, InvocationTargetException, NamingException, InstantiationException, ClassNotFoundException {
-            return Class.forName(className).newInstance();
-        }
-
-        @Override
-        public Object newInstance(String fqcn, ClassLoader classLoader) throws IllegalAccessException, InvocationTargetException, NamingException, InstantiationException, ClassNotFoundException {
-            return Class.forName(fqcn, false, classLoader).newInstance();
-        }
-
-        @Override
-        public Object newInstance(Class<?> c) throws IllegalAccessException, InvocationTargetException, NamingException, InstantiationException {
-            return c.newInstance();
-        }
-
-        @Override
-        public void newInstance(Object o) throws IllegalAccessException, InvocationTargetException, NamingException {
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public void destroyInstance(Object o) throws IllegalAccessException, InvocationTargetException {
-        }
-    }
 }

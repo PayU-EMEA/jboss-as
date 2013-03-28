@@ -22,29 +22,45 @@
 
 package org.jboss.as.connector.services.resourceadapters.deployment;
 
+import static java.lang.System.getSecurityManager;
+import static java.lang.Thread.currentThread;
+import static java.security.AccessController.doPrivileged;
+import static org.jboss.as.connector.logging.ConnectorLogger.DEPLOYMENT_CONNECTOR_LOGGER;
+import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
+
+import java.io.File;
+import java.io.PrintWriter;
+import java.net.URL;
+import java.util.List;
+import javax.naming.Reference;
+import javax.resource.spi.ResourceAdapter;
+import javax.transaction.TransactionManager;
+
+import org.jboss.as.connector.metadata.deployment.ResourceAdapterDeployment;
+import org.jboss.as.connector.services.mdr.AS7MetadataRepository;
 import org.jboss.as.connector.services.resourceadapters.AdminObjectReferenceFactoryService;
 import org.jboss.as.connector.services.resourceadapters.AdminObjectService;
-import org.jboss.as.connector.services.resourceadapters.ConnectionFactoryService;
-import org.jboss.as.connector.util.ConnectorServices;
-import org.jboss.as.connector.services.mdr.AS7MetadataRepository;
-import org.jboss.as.connector.metadata.deployment.ResourceAdapterDeployment;
-import org.jboss.as.connector.services.resourceadapters.deployment.registry.ResourceAdapterDeploymentRegistry;
 import org.jboss.as.connector.services.resourceadapters.ConnectionFactoryReferenceFactoryService;
+import org.jboss.as.connector.services.resourceadapters.ConnectionFactoryService;
+import org.jboss.as.connector.services.resourceadapters.deployment.registry.ResourceAdapterDeploymentRegistry;
 import org.jboss.as.connector.subsystems.jca.JcaSubsystemConfiguration;
-import org.jboss.as.connector.util.JCAValidatorFactory;
+import org.jboss.as.connector.util.ConnectorServices;
 import org.jboss.as.connector.util.Injection;
+import org.jboss.as.connector.util.JCAValidatorFactory;
 import org.jboss.as.naming.ManagedReferenceFactory;
 import org.jboss.as.naming.ServiceBasedNamingStore;
 import org.jboss.as.naming.deployment.ContextNames;
 import org.jboss.as.naming.service.BinderService;
+import org.jboss.as.util.security.ClearContextClassLoaderAction;
+import org.jboss.as.util.security.SetContextClassLoaderFromClassAction;
 import org.jboss.jca.common.api.metadata.ironjacamar.IronJacamar;
 import org.jboss.jca.common.api.metadata.ra.ConfigProperty;
 import org.jboss.jca.common.api.metadata.ra.Connector;
 import org.jboss.jca.common.api.metadata.ra.XsdString;
 import org.jboss.jca.core.api.connectionmanager.ccm.CachedConnectionManager;
 import org.jboss.jca.core.api.management.ManagementRepository;
-import org.jboss.jca.core.spi.mdr.AlreadyExistsException;
 import org.jboss.jca.core.connectionmanager.ConnectionManager;
+import org.jboss.jca.core.spi.mdr.AlreadyExistsException;
 import org.jboss.jca.core.spi.rar.ResourceAdapterRepository;
 import org.jboss.jca.core.spi.transaction.TransactionIntegration;
 import org.jboss.jca.core.spi.transaction.recovery.XAResourceRecovery;
@@ -56,27 +72,11 @@ import org.jboss.jca.deployers.common.DeployException;
 import org.jboss.msc.inject.Injector;
 import org.jboss.msc.service.AbstractServiceListener;
 import org.jboss.msc.service.ServiceBuilder;
-import org.jboss.msc.service.ServiceContainer;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceTarget;
-import org.jboss.msc.service.StopContext;
 import org.jboss.msc.value.InjectedValue;
 import org.jboss.security.SubjectFactory;
-
-import javax.naming.Reference;
-import javax.resource.spi.ResourceAdapter;
-import javax.transaction.TransactionManager;
-import java.io.File;
-import java.io.PrintWriter;
-import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.LinkedList;
-import java.util.List;
-
-import static org.jboss.as.connector.logging.ConnectorLogger.DEPLOYMENT_CONNECTOR_LOGGER;
-import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
 
 /**
  * A ResourceAdapterDeploymentService.
@@ -399,12 +399,15 @@ public abstract class AbstractResourceAdapterDeploymentService {
 
         @Override
         protected TransactionManager getTransactionManager() {
-            AccessController.doPrivileged(new SetContextLoaderAction(
-                    com.arjuna.ats.jbossatx.jta.TransactionManagerService.class.getClassLoader()));
+            if (getSecurityManager() == null) {
+                currentThread().setContextClassLoader(TransactionIntegration.class.getClassLoader());
+            } else {
+                doPrivileged(new SetContextClassLoaderFromClassAction(TransactionIntegration.class));
+            }
             try {
                 return getTxIntegration().getValue().getTransactionManager();
             } finally {
-                AccessController.doPrivileged(CLEAR_ACTION);
+                doPrivileged(ClearContextClassLoaderAction.getInstance());
             }
         }
 
@@ -419,27 +422,18 @@ public abstract class AbstractResourceAdapterDeploymentService {
                     Injection injector = new Injection();
                     for (ConfigProperty cpmd : configs) {
                         if (cpmd.isValueSet()) {
-                            boolean setValue = true;
 
-                            if (cpmd instanceof org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16) {
-                                org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16 cpmd16 = (org.jboss.jca.common.api.metadata.ra.ra16.ConfigProperty16) cpmd;
-
-                                if (cpmd16.getConfigPropertyIgnore() != null && cpmd16.getConfigPropertyIgnore().booleanValue())
-                                    setValue = false;
+                            if (XsdString.isNull(cpmd.getConfigPropertyType())) {
+                                injector.inject(o,
+                                        cpmd.getConfigPropertyName().getValue(),
+                                        cpmd.getConfigPropertyValue().getValue());
+                            } else {
+                                injector.inject(o,
+                                        cpmd.getConfigPropertyName().getValue(),
+                                        cpmd.getConfigPropertyValue().getValue(),
+                                        cpmd.getConfigPropertyType().getValue());
                             }
 
-                            if (setValue) {
-                                if (XsdString.isNull(cpmd.getConfigPropertyType())) {
-                                    injector.inject(o,
-                                            cpmd.getConfigPropertyName().getValue(),
-                                            cpmd.getConfigPropertyValue().getValue());
-                                } else {
-                                    injector.inject(o,
-                                            cpmd.getConfigPropertyName().getValue(),
-                                            cpmd.getConfigPropertyValue().getValue(),
-                                            cpmd.getConfigPropertyType().getValue());
-                                }
-                            }
 
                         }
                     }
@@ -509,21 +503,4 @@ public abstract class AbstractResourceAdapterDeploymentService {
             return new BeanValidation(new JCAValidatorFactory(cl));
         }
     }
-
-    private static final SetContextLoaderAction CLEAR_ACTION = new SetContextLoaderAction(null);
-
-    private static class SetContextLoaderAction implements PrivilegedAction<Void> {
-
-        private final ClassLoader classLoader;
-
-        public SetContextLoaderAction(final ClassLoader classLoader) {
-            this.classLoader = classLoader;
-        }
-
-        public Void run() {
-            Thread.currentThread().setContextClassLoader(classLoader);
-            return null;
-        }
-    }
-
 }

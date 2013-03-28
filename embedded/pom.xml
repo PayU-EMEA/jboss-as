@@ -35,20 +35,6 @@
     <artifactId>jboss-as-embedded</artifactId>
     <name>JBoss Application Server: Embedded</name>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
-
     <dependencies>
         <!-- For the EJB scanner -->
         <dependency>
@@ -63,6 +49,10 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-server</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-security-util</artifactId>
         </dependency>
         <dependency>
             <groupId>org.jboss</groupId>
@@ -92,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>org.jboss.spec.javax.ejb</groupId>
-            <artifactId>jboss-ejb-api_3.1_spec</artifactId>
+            <artifactId>jboss-ejb-api_3.2_spec</artifactId>
             <!-- TODO: move EJB Embeddable to a separate artifact -->
             <optional>true</optional>
         </dependency>

@@ -3,7 +3,6 @@
 <config>
    <subsystems>
       <subsystem>configuration/subsystems/logging.xml</subsystem>
-      <subsystem>configuration/subsystems/cmp.xml</subsystem>
       <subsystem>configuration/subsystems/configadmin.xml</subsystem>
       <subsystem>configuration/subsystems/datasources.xml</subsystem>
       <subsystem>configuration/subsystems/deployment-scanner.xml</subsystem>
@@ -11,7 +10,6 @@
       <subsystem supplement="full">configuration/subsystems/ejb3.xml</subsystem>
       <subsystem>configuration/subsystems/infinispan.xml</subsystem>
       <subsystem>configuration/subsystems/jacorb.xml</subsystem>
-      <subsystem>configuration/subsystems/jaxr.xml</subsystem>
       <subsystem>configuration/subsystems/jaxrs.xml</subsystem>
       <subsystem>configuration/subsystems/jca.xml</subsystem>
       <subsystem>configuration/subsystems/jdr.xml</subsystem>

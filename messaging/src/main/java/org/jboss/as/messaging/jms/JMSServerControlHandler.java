@@ -23,6 +23,7 @@
 package org.jboss.as.messaging.jms;
 
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP;
+import static org.jboss.as.messaging.HornetQActivationService.rollbackOperationIfServerNotActive;
 import static org.jboss.as.messaging.ManagementUtil.rollbackOperationWithResourceNotFound;
 import static org.jboss.as.messaging.MessagingMessages.MESSAGES;
 
@@ -54,7 +55,7 @@ import org.jboss.msc.service.ServiceName;
  */
 public class JMSServerControlHandler extends AbstractRuntimeOnlyHandler {
 
-    public static JMSServerControlHandler INSTANCE = new JMSServerControlHandler();
+    public static final JMSServerControlHandler INSTANCE = new JMSServerControlHandler();
 
     public static final String LIST_CONNECTIONS_AS_JSON = "list-connections-as-json";
     public static final String LIST_CONSUMERS_AS_JSON = "list-consumers-as-json";
@@ -90,6 +91,10 @@ public class JMSServerControlHandler extends AbstractRuntimeOnlyHandler {
 
     @Override
     protected void executeRuntimeStep(OperationContext context, ModelNode operation) throws OperationFailedException {
+
+        if (rollbackOperationIfServerNotActive(context, operation)) {
+            return;
+        }
 
         final String operationName = operation.require(OP).asString();
         final JMSServerControl serverControl = getServerControl(context, operation);

@@ -117,15 +117,19 @@ import org.jboss.modules.ModuleIdentifier;
 import org.jboss.msc.inject.Injector;
 import org.jboss.msc.value.InjectedValue;
 import org.jboss.vfs.VirtualFile;
+import org.jboss.as.web.common.WarMetaData;
 
 /**
  * @author Remy Maucherat
+ * @author Jean-Frederic Clere
  */
 public class JBossContextConfig extends ContextConfig {
     private DeploymentUnit deploymentUnitContext = null;
     private Set<String> overlays = new HashSet<String>();
     private final InjectedValue<DistributedCacheManagerFactory> factory = new InjectedValue<DistributedCacheManagerFactory>();
     private Map<String, AuthenticatorValve> authenValves = null;
+    private boolean DELETE_WORK_DIR_ONCONTEXTDESTROY = Boolean.parseBoolean(SecurityActions.getSystemProperty("org.jboss.as.web.deployment.DELETE_WORK_DIR_ONCONTEXTDESTROY", "false"));
+
     /**
      * <p>
      * Creates a new instance of {@code JBossContextConfig}.
@@ -575,6 +579,9 @@ public class JBossContextConfig extends ContextConfig {
 
     @Override
     protected void destroy() {
+        if (DELETE_WORK_DIR_ONCONTEXTDESTROY) {
+           super.destroy();
+        }
     }
 
     /**

@@ -24,24 +24,22 @@ package org.jboss.as.osgi.httpservice;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
-
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.catalina.servlets.DefaultServlet;
 import org.osgi.service.http.HttpContext;
-import org.osgi.service.http.HttpService;
 
 /**
- * An {@link HttpService} implementation
+ * An {@link org.osgi.service.http.HttpService} implementation
  *
  * @author Thomas.Diesler@jboss.com
  * @since 19-Jul-2012
  */
 @SuppressWarnings("serial")
-final class ResourceServlet extends DefaultServlet {
+final class ResourceServlet extends HttpServlet {
 
     private final String name;
     private final HttpContext context;
@@ -52,9 +50,8 @@ final class ResourceServlet extends DefaultServlet {
     }
 
     @Override
-    protected void serveResource(HttpServletRequest req, HttpServletResponse res, boolean content) throws IOException, ServletException {
+    protected void service(HttpServletRequest req, HttpServletResponse res) throws ServletException, IOException {
 
-        // Get the relative path
         String path = req.getPathInfo();
         URL resurl = context.getResource(name + path);
         if (resurl == null) {
@@ -67,6 +64,4 @@ final class ResourceServlet extends DefaultServlet {
         InputStream in = resurl.openStream();
         IOUtils.copyStream(out, in);
     }
-
-
 }

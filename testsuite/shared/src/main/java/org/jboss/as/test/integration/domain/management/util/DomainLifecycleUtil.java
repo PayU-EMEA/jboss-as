@@ -102,6 +102,10 @@ public class DomainLifecycleUtil {
         this.address = PathAddress.pathAddress(PathElement.pathElement(ModelDescriptionConstants.HOST, configuration.getHostName()));
     }
 
+    public JBossAsManagedConfiguration getConfiguration() {
+        return configuration;
+    }
+
     public PathAddress getAddress() {
         return address;
     }
@@ -134,6 +138,10 @@ public class DomainLifecycleUtil {
             String javaHome = configuration.getJavaHome();
             String java = (javaHome != null) ? javaHome + File.separatorChar + "bin" + File.separatorChar + "java" : "java";
 
+            String controllerJavaHome = configuration.getControllerJavaHome();
+            String controllerJava = (controllerJavaHome != null) ?
+                    controllerJavaHome + File.separatorChar + "bin" + File.separatorChar + "java" : "java";
+
             File domainDir = configuration.getDomainDirectory() != null ? new File(configuration.getDomainDirectory()) : new File(new File(jbossHomeDir), "domain");
             String domainPath = domainDir.getAbsolutePath();
 
@@ -165,7 +173,7 @@ public class DomainLifecycleUtil {
             fos.close();
 
             List<String> cmd = new ArrayList<String>();
-            cmd.add(java);
+            cmd.add(controllerJava);
             cmd.addAll(additionalJavaOpts);
             TestSuiteEnvironment.getIpv6Args(cmd);
             cmd.add("-Djboss.home.dir=" + jbossHomeDir);
@@ -175,13 +183,11 @@ public class DomainLifecycleUtil {
             cmd.add(modulesJar.getAbsolutePath());
             cmd.add("-mp");
             cmd.add(modulePath);
-            //cmd.add("-jaxpmodule");
-            //cmd.add("javax.xml.jaxp-provider");
             cmd.add("org.jboss.as.process-controller");
             cmd.add("-jboss-home");
             cmd.add(jbossHomeDir);
             cmd.add("-jvm");
-            cmd.add(java);
+            cmd.add(controllerJava);
             cmd.add("--");
             cmd.add("-Dorg.jboss.boot.log.file=" + domainPath + "/log/host-controller.log");
             cmd.add("-Dlogging.configuration=file:" + jbossHomeDir + "/domain/configuration/logging.properties");

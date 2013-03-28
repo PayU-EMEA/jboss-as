@@ -53,7 +53,7 @@ import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.ServiceVerificationHandler;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.controller.security.ServerSecurityManager;
-import org.jboss.as.domain.management.AuthenticationMechanism;
+import org.jboss.as.domain.management.AuthMechanism;
 import org.jboss.as.domain.management.CallbackHandlerFactory;
 import org.jboss.as.domain.management.SSLIdentity;
 import org.jboss.as.domain.management.connections.ConnectionManager;
@@ -200,7 +200,10 @@ public class SecurityRealmAddHandler implements OperationStepHandler {
         }
         PlugInLoaderService loaderService = new PlugInLoaderService(Collections.unmodifiableList(knownNames));
         ServiceBuilder<PlugInLoaderService> builder = serviceTarget.addService(plugInLoaderName, loaderService);
-        newControllers.add(builder.setInitialMode(Mode.ON_DEMAND).install());
+        final ServiceController<PlugInLoaderService> sc = builder.setInitialMode(Mode.ON_DEMAND).install();
+        if(newControllers != null) {
+            newControllers.add(sc);
+        }
 
         return plugInLoaderName;
     }
@@ -211,8 +214,10 @@ public class SecurityRealmAddHandler implements OperationStepHandler {
         ClientCertCallbackHandler clientCertCallbackHandler = new ClientCertCallbackHandler();
 
         ServiceBuilder<?> ccBuilder = serviceTarget.addService(clientCertServiceName, clientCertCallbackHandler);
-
-        newControllers.add(ccBuilder.setInitialMode(ON_DEMAND).install());
+        final ServiceController<?> sc = ccBuilder.setInitialMode(ON_DEMAND).install();
+        if(newControllers != null) {
+            newControllers.add(sc);
+        }
 
         return clientCertServiceName;
     }
@@ -229,7 +234,10 @@ public class SecurityRealmAddHandler implements OperationStepHandler {
                     ServerSecurityManager.class, jaasCallbackHandler.getSecurityManagerValue());
         }
 
-        newControllers.add(jaasBuilder.setInitialMode(ON_DEMAND).install());
+        final ServiceController<?> sc = jaasBuilder.setInitialMode(ON_DEMAND).install();
+        if(newControllers != null) {
+            newControllers.add(sc);
+        }
 
         return jaasServiceName;
     }
@@ -271,8 +279,10 @@ public class SecurityRealmAddHandler implements OperationStepHandler {
         LocalCallbackHandlerService localCallbackHandler = new LocalCallbackHandlerService(defaultUser, allowedUsers);
 
         ServiceBuilder<?> jaasBuilder = serviceTarget.addService(localServiceName, localCallbackHandler);
-
-        newControllers.add(jaasBuilder.setInitialMode(ON_DEMAND).install());
+        final ServiceController<?> serviceController = jaasBuilder.setInitialMode(ON_DEMAND).install();
+        if(newControllers != null) {
+            newControllers.add(serviceController);
+        }
 
         return localServiceName;
     }
@@ -285,14 +295,17 @@ public class SecurityRealmAddHandler implements OperationStepHandler {
         final String pluginName = PlugInAuthorizationResourceDefinition.NAME.resolveModelAttribute(context, model).asString();
         final Map<String, String> properties = resolveProperties(context, model);
         String mechanismName = PlugInAuthenticationResourceDefinition.MECHANISM.resolveModelAttribute(context, model).asString();
-        AuthenticationMechanism mechanism = AuthenticationMechanism.valueOf(mechanismName);
+        AuthMechanism mechanism = AuthMechanism.valueOf(mechanismName);
         PlugInAuthenticationCallbackHandler plugInService = new PlugInAuthenticationCallbackHandler(registry.getName(),
                 pluginName, properties, mechanism);
 
         ServiceBuilder<CallbackHandlerService> plugInBuilder = serviceTarget.addService(plugInServiceName, plugInService);
         plugInBuilder.addDependency(plugInLoaderName, PlugInLoaderService.class, plugInService.getPlugInLoaderServiceValue());
 
-        newControllers.add(plugInBuilder.setInitialMode(ON_DEMAND).install());
+        final ServiceController<CallbackHandlerService> sc = plugInBuilder.setInitialMode(ON_DEMAND).install();
+        if(newControllers != null) {
+            newControllers.add(sc);
+        }
 
         return plugInServiceName;
     }

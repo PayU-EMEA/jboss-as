@@ -12,17 +12,23 @@ And of course Java EE!
 
 Building
 -------------------
-If you already have Maven 3.0.3 or newer installed
 
-> mvn install
+Ensure you have JDK 7 (or newer) installed
 
-If you don't have Maven 3
+> java -version
+
+On *nix-like system use the prepared script
 
 > ./build.sh
 
-If you use Windows and don't have Maven 3
+On Windows use the corresponding batch script
 
 > build.bat
+
+If you already have Maven 3.0.4 (or newer) installed you can use it directly
+
+> mvn install
+
 
 Starting and Stopping JBoss
 ------------------------------------------
@@ -46,18 +52,18 @@ More information on the wiki: http://community.jboss.org/wiki/JBossAS7UserGuide
 
 Contributing
 ------------------
-http://community.jboss.org/wiki/HackingonAS7
+https://community.jboss.org/wiki/HackingOnAS8
 
 Running the Testsuite
 --------------------
 The testsuite module contains several submodules including the following:
 
 * "smoke" -- core tests that should be run as part of every build of the AS. Failures here will fail the build.
-* "api" -- tests of features that involve end user use of the public JBoss AS 7 API. Should be run with no failures before any major commits.
+* "api" -- tests of features that involve end user use of the public JBoss AS 8 API. Should be run with no failures before any major commits.
 * "cluster" -- tests of the AS 7 HA clustering features. Should be run with no failures before any major commits.
 * "domain" -- tests of the domain management features. Should be run with no failures before any major commits.
 * "integration" -- tests of an AS 7 standalone server's internals. Should be run with no failures before any major commits.
-* "spec" -- tests of features that only involve end user use of the Java EE 6 spec APIs. Should be run with no failures before any major commits.
+* "spec" -- tests of features that only involve end user use of the Java EE 7 spec APIs. Should be run with no failures before any major commits.
 * "benchmark" -- tests used to compare performance against other releases or previous builds
 * "stress" -- tests of the server's ability to perform properly while under stress 
 
@@ -76,7 +82,7 @@ To run all the tests
 Using Eclipse
 -------------
 1. Install the latest version of eclipse
-2. Make sure Xmx in eclipse.ini is at least 512M, and it's using java 6
+2. Make sure Xmx in eclipse.ini is at least 512M, and it's using java 7
 3. Launch eclispe and install the m2eclipse plugin, make sure it uses your repo configs
    (get it from: http://m2eclipse.sonatype.org/sites/m2e)
 4. In eclipse preferences Java->Compiler->Errors/Warnings->Deprecated and restricted

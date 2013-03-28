@@ -36,6 +36,7 @@
     <module name="org.jboss.logging"/>
     <module name="org.jboss.common-core"/>
     <module name="org.joda.time"/>
+    <module name="org.jsoup"/>
     <module name="org.slf4j"/>
     <module name="org.apache.xerces" services="import"/>
     <module name="sun.jdk" services="import"/>

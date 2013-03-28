@@ -21,7 +21,7 @@
  */
 package org.jboss.as.controller.descriptions;
 
-import org.jboss.as.controller.registry.AttributeAccess;
+
 
 /**
  * String constants frequently used in model descriptions.
@@ -32,7 +32,7 @@ public class ModelDescriptionConstants {
 
     // KEEP THESE IN ALPHABETICAL ORDER!
 
-    /** The key for {@link AttributeAccess.AccessType} fields. */
+    /** The key for {@link org.jboss.as.controller.registry.AttributeAccess.AccessType} fields. */
     public static final String ACCESS_TYPE = "access-type";
     public static final String ADD = "add";
     public static final String ADDRESS = "address";
@@ -85,6 +85,8 @@ public class ModelDescriptionConstants {
     public static final String DIRECTORY = "directory";
     public static final String DIRECTORY_GROUPING = "directory-grouping";
     public static final String DISABLE = "disable";
+    public static final String DISCOVERY_OPTION = "discovery-option";
+    public static final String DISCOVERY_OPTIONS = "discovery-options";
     public static final String DOMAIN = "domain";
     public static final String DOMAIN_FAILURE_DESCRIPTION = "domain-failure-description";
     public static final String DOMAIN_CONTROLLER = "domain-controller";
@@ -272,11 +274,12 @@ public class ModelDescriptionConstants {
     public static final String SSL = "ssl";
     public static final String START = "start";
     public static final String START_SERVERS = "start-servers";
+    public static final String STATIC_DISCOVERY = "static-discovery";
     public static final String STATUS = "status";
     public static final String STEPS = "steps";
     public static final String STOP = "stop";
     public static final String STOP_SERVERS = "stop-servers";
-    /** The key for {@link AttributeAccess.Storage} fields. */
+    /** The key for {@link org.jboss.as.controller.registry.AttributeAccess.Storage} fields. */
     public static final String STORAGE = "storage";
     public static final String SUBDEPLOYMENT = "subdeployment";
     public static final String SUBSYSTEM = "subsystem";

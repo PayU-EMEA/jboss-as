@@ -46,7 +46,9 @@ import org.jboss.as.core.model.test.KernelServices;
 import org.jboss.as.core.model.test.KernelServicesBuilder;
 import org.jboss.as.core.model.test.LegacyKernelServicesInitializer;
 import org.jboss.as.core.model.test.TestModelType;
+import org.jboss.as.core.model.test.util.ExcludeCommonOperations;
 import org.jboss.as.core.model.test.util.TransformersTestParameters;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.dmr.ModelNode;
 import org.junit.Assert;
 import org.junit.Test;
@@ -66,7 +68,7 @@ public class SocketBindingTransformersTestCase extends AbstractCoreModelTest {
     private static final String CLIENT_MAPPING_DESTINATION_PORT = AbstractSocketBindingResourceDefinition.CLIENT_MAPPING_DESTINATION_PORT.getName();
 
     private final ModelVersion modelVersion;
-    private final LegacyKernelServicesInitializer.TestControllerVersion testControllerVersion;
+    private final ModelTestControllerVersion testControllerVersion;
 
     @Parameterized.Parameters
     public static List<Object[]> parameters(){
@@ -91,7 +93,7 @@ public class SocketBindingTransformersTestCase extends AbstractCoreModelTest {
         LegacyKernelServicesInitializer legacyInit = builder.createLegacyKernelServicesBuilder(modelVersion, testControllerVersion);
         if (modelVersion.getMajor() == 1 && modelVersion.getMinor() <= 3) {
             //The 7.1.2/3 operation validator does not like expressions very much
-            legacyInit.setDontValidateOperations();
+            ExcludeCommonOperations.excludeBadOps_7_1_x(legacyInit);
         }
 
         KernelServices mainServices = builder.build();
@@ -132,8 +134,8 @@ public class SocketBindingTransformersTestCase extends AbstractCoreModelTest {
 
         OperationTransformer.TransformedOperation transOp = mainServices.transformOperation(modelVersion, write);
         ModelNode translatedWrite = transOp.getTransformedOperation();
-        junit.framework.Assert.assertTrue(translatedWrite.hasDefined(VALUE));
-        junit.framework.Assert.assertEquals(mappings, translatedWrite.get(VALUE));
+        Assert.assertTrue(translatedWrite.hasDefined(VALUE));
+        Assert.assertEquals(mappings, translatedWrite.get(VALUE));
         ModelNode result = mainServices.executeOperation(modelVersion, transOp);
         Assert.assertEquals("expected result: " + result, FAILED, result.get(OUTCOME).asString());
     }
@@ -153,8 +155,8 @@ public class SocketBindingTransformersTestCase extends AbstractCoreModelTest {
 
         OperationTransformer.TransformedOperation transOp = mainServices.transformOperation(modelVersion, add);
         ModelNode translatedAdd = transOp.getTransformedOperation();
-        junit.framework.Assert.assertTrue(translatedAdd.hasDefined(CLIENT_MAPPINGS));
-        junit.framework.Assert.assertEquals(mappings, translatedAdd.get(CLIENT_MAPPINGS));
+        Assert.assertTrue(translatedAdd.hasDefined(CLIENT_MAPPINGS));
+        Assert.assertEquals(mappings, translatedAdd.get(CLIENT_MAPPINGS));
         ModelNode result = mainServices.executeOperation(modelVersion, transOp);
         Assert.assertEquals("expected result: " + result, FAILED, result.get(OUTCOME).asString());
 

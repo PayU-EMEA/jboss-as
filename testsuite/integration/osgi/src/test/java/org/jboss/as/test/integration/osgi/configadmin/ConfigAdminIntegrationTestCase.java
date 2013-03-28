@@ -59,7 +59,6 @@ import org.osgi.framework.ServiceReference;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
 import org.osgi.service.cm.ManagedService;
-import org.osgi.service.packageadmin.PackageAdmin;
 import org.osgi.util.tracker.ServiceTracker;
 
 /**
@@ -82,13 +81,10 @@ public class ConfigAdminIntegrationTestCase {
     Deployer deployer;
 
     @ArquillianResource
+    BundleContext context;
+
+    @ArquillianResource
     ManagementClient managementClient;
-
-    @ArquillianResource
-    PackageAdmin packageAdmin;
-
-    @ArquillianResource
-    BundleContext syscontext;
 
     @Deployment
     public static JavaArchive deployment() {
@@ -103,7 +99,7 @@ public class ConfigAdminIntegrationTestCase {
                 builder.addExportPackages(ConfiguredService.class);
                 builder.addImportPackages(ConfigurationAdmin.class, ModelNode.class, ModelControllerClient.class);
                 builder.addImportPackages(ConfigAdmin.class, ServiceContainer.class, ManagementClient.class);
-                builder.addImportPackages(PackageAdmin.class, ServiceTracker.class);
+                builder.addImportPackages(ServiceTracker.class);
                 return builder.openStream();
             }
         });
@@ -113,7 +109,7 @@ public class ConfigAdminIntegrationTestCase {
     @Test
     public void testConfigAdminWriteFromBundle() throws Exception {
         InputStream input = deployer.getDeployment(CONFIG_ADMIN_BUNDLE_A);
-        Bundle bundle = syscontext.installBundle(CONFIG_ADMIN_PID_A, input);
+        Bundle bundle = context.installBundle(CONFIG_ADMIN_PID_A, input);
         try {
             bundle.start();
             Assert.assertEquals("Bundle ACTIVE", Bundle.ACTIVE, bundle.getState());
@@ -127,8 +123,8 @@ public class ConfigAdminIntegrationTestCase {
             props.put("foo", "bar");
             config.update(props);
             try {
-                ServiceReference sref = context.getServiceReference(ConfiguredService.class.getName());
-                ConfiguredService service = (ConfiguredService) context.getService(sref);
+                ServiceReference<ConfiguredService> sref = context.getServiceReference(ConfiguredService.class);
+                ConfiguredService service = context.getService(sref);
 
                 // Wait a little for the update to happen
                 Assert.assertTrue(service.awaitUpdate(3, TimeUnit.SECONDS));
@@ -147,7 +143,7 @@ public class ConfigAdminIntegrationTestCase {
     @Test
     public void testConfigAdminWriteFromAPI() throws Exception {
         InputStream input = deployer.getDeployment(CONFIG_ADMIN_BUNDLE_A);
-        Bundle bundle = syscontext.installBundle(CONFIG_ADMIN_PID_B, input);
+        Bundle bundle = context.installBundle(CONFIG_ADMIN_PID_B, input);
         try {
             bundle.start();
             Assert.assertEquals("Bundle ACTIVE", Bundle.ACTIVE, bundle.getState());
@@ -182,8 +178,8 @@ public class ConfigAdminIntegrationTestCase {
                 Configuration config = configurationAdmin.getConfiguration(CONFIG_ADMIN_PID_B);
                 Assert.assertEquals("bar", config.getProperties().get("foo"));
 
-                ServiceReference sref = context.getServiceReference(ConfiguredService.class.getName());
-                ConfiguredService service = (ConfiguredService) context.getService(sref);
+                ServiceReference<ConfiguredService> sref = context.getServiceReference(ConfiguredService.class);
+                ConfiguredService service = context.getService(sref);
 
                 // Wait a little for the update to happen
                 Assert.assertTrue(service.awaitUpdate(3, TimeUnit.SECONDS));
@@ -200,7 +196,7 @@ public class ConfigAdminIntegrationTestCase {
     @Test
     public void testConfigAdminWriteFromModel() throws Exception {
         InputStream input = deployer.getDeployment(CONFIG_ADMIN_BUNDLE_A);
-        Bundle bundle = syscontext.installBundle(CONFIG_ADMIN_PID_C, input);
+        Bundle bundle = context.installBundle(CONFIG_ADMIN_PID_C, input);
         try {
             bundle.start();
             Assert.assertEquals("Bundle ACTIVE", Bundle.ACTIVE, bundle.getState());
@@ -235,8 +231,8 @@ public class ConfigAdminIntegrationTestCase {
                 Configuration config = configurationAdmin.getConfiguration(CONFIG_ADMIN_PID_C);
                 Assert.assertEquals("bar", config.getProperties().get("foo"));
 
-                ServiceReference sref = context.getServiceReference(ConfiguredService.class.getName());
-                ConfiguredService service = (ConfiguredService) context.getService(sref);
+                ServiceReference<ConfiguredService> sref = context.getServiceReference(ConfiguredService.class);
+                ConfiguredService service = context.getService(sref);
 
                 // Wait a little for the update to happen
                 Assert.assertTrue(service.awaitUpdate(3, TimeUnit.SECONDS));
@@ -254,7 +250,7 @@ public class ConfigAdminIntegrationTestCase {
     public void testConfigAdminWriteFromBundleActivator() throws Exception {
         deployer.deploy(CONFIG_ADMIN_BUNDLE_B);
         try {
-            Bundle bundle = packageAdmin.getBundles(CONFIG_ADMIN_BUNDLE_B, null)[0];
+            Bundle bundle = context.getBundle(CONFIG_ADMIN_BUNDLE_B);
             Assert.assertEquals("Bundle ACTIVE", Bundle.ACTIVE, bundle.getState());
 
             BundleContext context = bundle.getBundleContext();
@@ -268,8 +264,8 @@ public class ConfigAdminIntegrationTestCase {
                 Dictionary<String, String> modelProps = configAdmin.getConfiguration(CONFIG_ADMIN_BUNDLE_B);
                 Assert.assertEquals("bar", modelProps.get("foo"));
 
-                ServiceReference sref = context.getServiceReference(ConfiguredService.class.getName());
-                ConfiguredService service = (ConfiguredService) context.getService(sref);
+                ServiceReference<ConfiguredService> sref = context.getServiceReference(ConfiguredService.class);
+                ConfiguredService service = context.getService(sref);
 
                 // Wait a little for the update to happen
                 Assert.assertTrue(service.awaitUpdate(3, TimeUnit.SECONDS));
@@ -287,8 +283,8 @@ public class ConfigAdminIntegrationTestCase {
     }
 
     private ConfigAdmin getConfigAdmin(BundleContext context) {
-        ServiceReference sref = context.getServiceReference(ServiceContainer.class.getName());
-        ServiceContainer serviceContainer = (ServiceContainer) context.getService(sref);
+        ServiceReference<ServiceContainer> sref = context.getServiceReference(ServiceContainer.class);
+        ServiceContainer serviceContainer = context.getService(sref);
         ServiceController<?> controller = serviceContainer.getRequiredService(ConfigAdmin.SERVICE_NAME);
         return (ConfigAdmin) controller.getValue();
     }

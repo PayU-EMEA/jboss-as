@@ -35,7 +35,6 @@ public class InterceptorOrder {
 
     public static final class Component {
 
-
         public static final int INITIAL_INTERCEPTOR = 0x100;
         public static final int CDI_REQUEST_SCOPE = 0x320;
         public static final int SYNCHRONIZATION_INTERCEPTOR = 0x500;
@@ -53,6 +52,7 @@ public class InterceptorOrder {
         // JSR 109 - Version 1.3 - 6.2.2.5 Transaction
         // Handlers run under the transaction context of the component they are associated with.
         public static final int WS_HANDLERS_INTERCEPTOR = 0x900;
+        public static final int XTS_INTERCEPTOR = 0x901;
 
         /**
          * All user level interceptors are added with the same priority, so they execute
@@ -70,6 +70,7 @@ public class InterceptorOrder {
 
     public static final class ComponentPostConstruct {
 
+        public static final int PRIVILEGED_INTERCEPTOR = 0;
         public static final int TCCL_INTERCEPTOR = 0x100;
         public static final int EJB_SESSION_CONTEXT_INTERCEPTOR = 0x200;
         public static final int TRANSACTION_INTERCEPTOR = 0x300;
@@ -93,6 +94,7 @@ public class InterceptorOrder {
 
     public static final class ComponentPreDestroy {
 
+        public static final int PRIVILEGED_INTERCEPTOR = 0;
         public static final int TCCL_INTERCEPTOR = 0x100;
         public static final int EJB_SESSION_CONTEXT_INTERCEPTOR = 0x200;
         public static final int TRANSACTION_INTERCEPTOR = 0x300;
@@ -111,6 +113,7 @@ public class InterceptorOrder {
 
     public static final class ComponentPassivation {
 
+        public static final int PRIVILEGED_INTERCEPTOR = 0;
         public static final int TCCL_INTERCEPTOR = 0x100;
         public static final int EJB_SESSION_CONTEXT_INTERCEPTOR = 0x200;
         public static final int TRANSACTION_INTERCEPTOR = 0x300;
@@ -125,6 +128,7 @@ public class InterceptorOrder {
     }
 
     public static final class View {
+        public static final int PRIVILEGED_INTERCEPTOR = 0;
         public static final int TCCL_INTERCEPTOR = 0x001;
         public static final int INVOCATION_TYPE = 0x005;
         public static final int EE_SETUP = 0x010;
@@ -148,6 +152,7 @@ public class InterceptorOrder {
         public static final int CMT_TRANSACTION_INTERCEPTOR = 0x500;
         public static final int HOME_METHOD_INTERCEPTOR = 0x600;
         public static final int ASSOCIATING_INTERCEPTOR = 0x700;
+        public static final int XTS_INTERCEPTOR = 0x701;
         public static final int SESSION_REMOVE_INTERCEPTOR = 0x900;
         public static final int COMPONENT_DISPATCHER = 0xA00;
 

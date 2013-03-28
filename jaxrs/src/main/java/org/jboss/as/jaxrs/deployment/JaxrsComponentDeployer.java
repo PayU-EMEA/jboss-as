@@ -85,7 +85,7 @@ public class JaxrsComponentDeployer implements DeploymentUnitProcessor {
                 final String jndiName;
                 if (component.getViews().size() == 1) {
                     //only 1 view, just use the simple JNDI name
-                    jndiName = "java:app/" + moduleDescription.getModuleName() + "/" + componentClass.getSimpleName();
+                    jndiName = "java:app/" + moduleDescription.getModuleName() + "/" + component.getComponentName();
                 } else {
                     boolean found = false;
                     String foundType = null;
@@ -104,7 +104,7 @@ public class JaxrsComponentDeployer implements DeploymentUnitProcessor {
                     if (!found) {
                         throw JaxrsMessages.MESSAGES.typeNameNotAnEjbView(Arrays.asList(jaxrsType), component.getComponentName());
                     }
-                    jndiName = "java:app/" + moduleDescription.getModuleName() + "/" + componentClass.getSimpleName() + "!" + foundType;
+                    jndiName = "java:app/" + moduleDescription.getModuleName() + "/" + component.getComponentName() + "!" + foundType;
                 }
 
                 JAXRS_LOGGER.debugf("Found JAX-RS Managed Bean: %s local jndi jaxRsTypeName: %s", component.getComponentClassName(), jndiName);
@@ -115,7 +115,6 @@ public class JaxrsComponentDeployer implements DeploymentUnitProcessor {
                 // make sure its removed from list
                 resteasy.getScannedResourceClasses().remove(component.getComponentClassName());
             } else if (component instanceof ManagedBeanComponentDescription) {
-
                 String jndiName = "java:app/" + moduleDescription.getModuleName() + "/" + component.getComponentName();
 
                 JAXRS_LOGGER.debugf("Found JAX-RS Managed Bean: %s local jndi name: %s", component.getComponentClassName(), jndiName);

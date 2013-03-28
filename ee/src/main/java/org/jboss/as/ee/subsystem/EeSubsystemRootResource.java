@@ -24,16 +24,13 @@ package org.jboss.as.ee.subsystem;
 import java.util.EnumSet;
 
 import org.jboss.as.controller.AttributeDefinition;
-import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.ReloadRequiredRemoveStepHandler;
-import org.jboss.as.controller.ResourceDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.controller.SimpleResourceDefinition;
 import org.jboss.as.controller.descriptions.DefaultResourceAddDescriptionProvider;
 import org.jboss.as.controller.descriptions.DefaultResourceRemoveDescriptionProvider;
 import org.jboss.as.controller.descriptions.DescriptionProvider;
-import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.descriptions.ResourceDescriptionResolver;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
 import org.jboss.as.controller.registry.OperationEntry;
@@ -48,7 +45,7 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.REMOVE;
 
 /**
- * {@link ResourceDefinition} for the EE subsystem's root management resource.
+ * {@link org.jboss.as.controller.ResourceDefinition} for the EE subsystem's root management resource.
  *
  * @author Stuart Douglas
  */

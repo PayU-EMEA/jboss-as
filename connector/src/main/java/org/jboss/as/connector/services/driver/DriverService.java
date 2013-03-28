@@ -25,6 +25,11 @@
  */
 package org.jboss.as.connector.services.driver;
 
+import static org.jboss.as.connector.logging.ConnectorLogger.DEPLOYER_JDBC_LOGGER;
+import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
+
+import java.sql.Driver;
+
 import org.jboss.as.connector.services.driver.registry.DriverRegistry;
 import org.jboss.msc.inject.Injector;
 import org.jboss.msc.service.Service;
@@ -32,10 +37,6 @@ import org.jboss.msc.service.StartContext;
 import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.StopContext;
 import org.jboss.msc.value.InjectedValue;
-
-import java.sql.Driver;
-
-import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
 
 /**
  * Service wrapper for a {@link java.sql.Driver}.
@@ -64,11 +65,14 @@ public class DriverService implements Service<Driver> {
     @Override
     public void start(StartContext context) throws StartException {
         injectedDriverRegistry.getValue().registerInstalledDriver(driverMetaData);
+        DEPLOYER_JDBC_LOGGER.startedDriverService(driverMetaData.getDriverName());
+
     }
 
     @Override
     public void stop(StopContext context) {
         injectedDriverRegistry.getValue().unregisterInstalledDriver(driverMetaData);
+        DEPLOYER_JDBC_LOGGER.stoppeddDriverService(driverMetaData.getDriverName());
     }
 
     public Injector<DriverRegistry> getDriverRegistryServiceInjector() {

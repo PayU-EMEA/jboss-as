@@ -56,7 +56,6 @@ import org.jboss.dmr.ModelNode;
 import org.jboss.msc.inject.Injector;
 import org.jboss.msc.inject.MapInjector;
 import org.jboss.msc.service.Service;
-import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.StartContext;
@@ -102,7 +101,8 @@ class HornetQService implements Service<HornetQServer> {
     // broadcast-group and discovery-groups configured with JGroups must share the same channel
     private final Map<String, JChannel> channels = new HashMap<String, JChannel>();
 
-    public HornetQService(PathConfig pathConfig) {
+    public HornetQService(Configuration configuration, PathConfig pathConfig) {
+        this.configuration = configuration;
         this.pathConfig = pathConfig;
     }
 
@@ -306,14 +306,6 @@ class HornetQService implements Service<HornetQServer> {
         return server;
     }
 
-    public Configuration getConfiguration() {
-        return configuration;
-    }
-
-    public void setConfiguration(Configuration hqConfig) {
-        this.configuration = hqConfig;
-    }
-
     public Injector<SecurityDomainContext> getSecurityDomainContextInjector() {
         return securityDomainContextValue;
     }
@@ -323,7 +315,7 @@ class HornetQService implements Service<HornetQServer> {
     }
 
     /**
-     * Returns true if a {@link ServiceController} for this service has been {@link ServiceBuilder#install() installed}
+     * Returns true if a {@link ServiceController} for this service has been {@link org.jboss.msc.service.ServiceBuilder#install() installed}
      * in MSC under the
      * {@link MessagingServices#getHornetQServiceName(PathAddress) service name appropriate to the given operation}.
      *

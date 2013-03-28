@@ -32,8 +32,6 @@ import static org.jboss.as.modcluster.CommonAttributes.MOD_CLUSTER_CONFIG;
 import java.io.IOException;
 import java.util.Set;
 
-import junit.framework.Assert;
-
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
@@ -41,6 +39,7 @@ import org.jboss.as.model.test.FailedOperationTransformationConfig;
 import org.jboss.as.model.test.FailedOperationTransformationConfig.AttributesPathAddressConfig;
 import org.jboss.as.model.test.FailedOperationTransformationConfig.ChainedConfig;
 import org.jboss.as.model.test.ModelFixer;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.AbstractSubsystemBaseTest;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
@@ -48,8 +47,10 @@ import org.jboss.as.subsystem.test.KernelServices;
 import org.jboss.as.subsystem.test.KernelServicesBuilder;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.ModelType;
+import org.jboss.dmr.Property;
 import org.jboss.modcluster.config.impl.ModClusterConfig;
 import org.jboss.msc.service.ServiceController;
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -69,22 +70,23 @@ public class ModClusterSubsystemTestCase extends AbstractSubsystemBaseTest {
 
     @Test
     public void testTransformers712() throws Exception {
-        testTransformers_1_2_0("7.1.2.Final");
+        testTransformers_1_2_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformers713() throws Exception {
-        testTransformers_1_2_0("7.1.3.Final");
+        testTransformers_1_2_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformers_1_2_0(String version) throws Exception {
+    private void testTransformers_1_2_0(ModelTestControllerVersion controllerVersion) throws Exception {
         String subsystemXml = readResource("subsystem-transform-no-reject.xml");
         ModelVersion modelVersion = ModelVersion.create(1, 2, 0);
         KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization())
                 .setSubsystemXml(subsystemXml);
 
-        builder.createLegacyKernelServicesBuilder(null, modelVersion)
-                .addMavenResourceURL("org.jboss.as:jboss-as-modcluster:" + version);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, modelVersion)
+                .addMavenResourceURL("org.jboss.as:jboss-as-modcluster:" + controllerVersion.getMavenGavVersion())
+                .configureReverseControllerCheck(null, new Undo71TransformModelFixer());
 
         KernelServices mainServices = builder.build();
         KernelServices legacyServices = mainServices.getLegacyServices(modelVersion);
@@ -123,21 +125,21 @@ public class ModClusterSubsystemTestCase extends AbstractSubsystemBaseTest {
 
     @Test
     public void testExpressionsAreRejected712() throws Exception {
-        testExpressionsAreRejectedByVersion_1_2("7.1.2.Final");
+        testExpressionsAreRejectedByVersion_1_2(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testExpressionsAreRejected713() throws Exception {
-        testExpressionsAreRejectedByVersion_1_2("7.1.2.Final");
+        testExpressionsAreRejectedByVersion_1_2(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testExpressionsAreRejectedByVersion_1_2(String version) throws Exception {
+    private void testExpressionsAreRejectedByVersion_1_2(ModelTestControllerVersion controllerVersion) throws Exception {
         String subsystemXml = readResource("subsystem-transform-reject.xml");
         ModelVersion modelVersion = ModelVersion.create(1, 2, 0);
         KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization());
 
-        builder.createLegacyKernelServicesBuilder(null, modelVersion)
-                .addMavenResourceURL("org.jboss.as:jboss-as-modcluster:" + version);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, modelVersion)
+                .addMavenResourceURL("org.jboss.as:jboss-as-modcluster:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         KernelServices legacyServices = mainServices.getLegacyServices(modelVersion);
@@ -156,11 +158,14 @@ public class ModClusterSubsystemTestCase extends AbstractSubsystemBaseTest {
                 new FailedOperationTransformationConfig()
                         .addFailedAttribute(metrAddr,
                                 ChainedConfig.createBuilder(CommonAttributes.CAPACITY, CommonAttributes.WEIGHT, CommonAttributes.PROPERTY)
-                                    .addConfig(new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.CAPACITY, CommonAttributes.WEIGHT))
+                                    .addConfig(CapacityConfig.INSTANCE)
+                                    .addConfig(new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.WEIGHT))
                                     .addConfig(new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.PROPERTY))
                                     .addConfig(new OnlyOnePropertyConfig(CommonAttributes.PROPERTY)).build())
                         .addFailedAttribute(custAddr,
-                                new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.CAPACITY, CommonAttributes.WEIGHT, CommonAttributes.CLASS))
+                                ChainedConfig.createBuilder(CommonAttributes.CAPACITY, CommonAttributes.WEIGHT, CommonAttributes.CLASS)
+                                    .addConfig(new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.WEIGHT, CommonAttributes.CLASS))
+                                    .addConfig(CapacityConfig.INSTANCE).build())
                         .addFailedAttribute(dynaAddr,
                                 new FailedOperationTransformationConfig.RejectExpressionsConfig(CommonAttributes.DECAY, CommonAttributes.HISTORY))
                         .addFailedAttribute(simpAddr,
@@ -262,6 +267,63 @@ public class ModClusterSubsystemTestCase extends AbstractSubsystemBaseTest {
         @Override
         protected boolean isAttributeWritable(String attributeName) {
             return false;
+        }
+    }
+
+    /**
+     * Fixes model produced by a 7.2 (or later) controller that executes operations produced for 7.1
+     * such that the model anomalies produced by the transform are removed.
+     */
+    private static class Undo71TransformModelFixer implements ModelFixer {
+
+        @Override
+        public ModelNode fixModel(ModelNode modelNode) {
+            if (modelNode.getType() == ModelType.OBJECT) {
+                for (Property property : modelNode.asPropertyList()) {
+                    if (property.getName().equals(LoadMetricDefinition.CAPACITY.getName())) {
+                        if (property.getValue().getType() == ModelType.INT) {
+                            modelNode.get(property.getName()).set(property.getValue().asDouble());
+                        }
+                    } else if (property.getName().equals(LoadMetricDefinition.PROPERTY.getName())) {
+                        if (property.getValue().getType() == ModelType.PROPERTY) {
+                            Property child = property.getValue().asProperty();
+                            ModelNode object = new ModelNode();
+                            object.get(child.getName()).set(child.getValue());
+                            modelNode.get(property.getName()).set(object);
+                        }
+                    } else if (property.getValue().isDefined()) {
+                        modelNode.get(property.getName()).set(fixModel(property.getValue()));
+                    }
+                }
+            }
+
+            return modelNode;
+        }
+    }
+
+    private static class CapacityConfig extends FailedOperationTransformationConfig.RejectExpressionsConfig {
+
+        private static final CapacityConfig INSTANCE = new CapacityConfig();
+
+        private CapacityConfig() {
+            super(CommonAttributes.CAPACITY);
+        }
+
+        @Override
+        protected boolean checkValue(String attrName, ModelNode attribute, boolean isWriteAttribute) {
+            return super.checkValue(attrName, attribute, isWriteAttribute)
+                    || attribute.getType() == ModelType.DOUBLE
+                    || attribute.getType() == ModelType.STRING;
+        }
+
+        @Override
+        protected ModelNode correctValue(ModelNode toResolve, boolean isWriteAttribute) {
+            ModelNode result = super.correctValue(toResolve, isWriteAttribute);
+            if (result.equals(toResolve)
+                    && (result.getType() == ModelType.DOUBLE || result.getType() == ModelType.STRING)) {
+                result = new ModelNode((int) Math.round(result.asDouble()));
+            }
+            return result;
         }
     }
 }

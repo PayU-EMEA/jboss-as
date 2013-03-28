@@ -39,6 +39,7 @@ import org.jboss.osgi.framework.spi.BundleManager;
 import org.jboss.osgi.framework.spi.BundleStorage;
 import org.jboss.osgi.framework.spi.IntegrationServices;
 import org.jboss.osgi.framework.spi.StorageState;
+import org.osgi.framework.BundleContext;
 import org.osgi.framework.BundleException;
 
 /**
@@ -65,11 +66,12 @@ public class BundleInstallProcessor implements DeploymentUnitProcessor {
 
         ServiceName serviceName;
         try {
-            final BundleManager bundleManager = depUnit.getAttachment(OSGiConstants.BUNDLE_MANAGER_KEY);
+            BundleManager bundleManager = depUnit.getAttachment(OSGiConstants.BUNDLE_MANAGER_KEY);
+            BundleContext syscontext = depUnit.getAttachment(OSGiConstants.SYSTEM_CONTEXT_KEY);
             if (deploymentTracker.hasDeploymentName(depUnit.getName())) {
                 restoreStorageState(phaseContext, deployment);
             }
-            serviceName = bundleManager.installBundle(deployment, phaseContext.getServiceTarget(), null);
+            serviceName = bundleManager.installBundle(syscontext, deployment, phaseContext.getServiceTarget(), null);
         } catch (BundleException ex) {
             throw new DeploymentUnitProcessingException(ex);
         }
@@ -88,7 +90,7 @@ public class BundleInstallProcessor implements DeploymentUnitProcessor {
 
     private void restoreStorageState(final DeploymentPhaseContext phaseContext, final Deployment deployment) {
         ServiceRegistry serviceRegistry = phaseContext.getServiceRegistry();
-        BundleStorage storageProvider = (BundleStorage) serviceRegistry.getRequiredService(IntegrationServices.BUNDLE_STORAGE).getValue();
+        BundleStorage storageProvider = (BundleStorage) serviceRegistry.getRequiredService(IntegrationServices.BUNDLE_STORAGE_PLUGIN).getValue();
         StorageState storageState = storageProvider.getStorageState(deployment.getLocation());
         if (storageState != null) {
             deployment.setAutoStart(storageState.isPersistentlyStarted());

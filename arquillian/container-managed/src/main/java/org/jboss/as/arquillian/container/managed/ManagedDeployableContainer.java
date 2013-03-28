@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 
 import org.jboss.arquillian.container.spi.client.container.LifecycleException;
 import org.jboss.as.arquillian.container.CommonDeployableContainer;
+import org.jboss.dmr.ModelNode;
 
 /**
  * The managed deployable container.
@@ -125,8 +126,6 @@ public final class ManagedDeployableContainer extends CommonDeployableContainer<
             cmd.add(modulesJar.getAbsolutePath());
             cmd.add("-mp");
             cmd.add(modulesPath);
-            cmd.add("-jaxpmodule");
-            cmd.add("javax.xml.jaxp-provider");
             cmd.add("org.jboss.as.standalone");
             cmd.add("-server-config");
             cmd.add(config.getServerConfig());
@@ -267,9 +266,32 @@ public final class ManagedDeployableContainer extends CommonDeployableContainer<
         }
         try {
             if (process != null) {
-                process.destroy();
+                Thread shutdown = new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            Thread.sleep(getContainerConfiguration().getStopTimeoutInSeconds() * 1000);
+                        } catch (InterruptedException e) {
+                            return;
+                        }
+
+                        // The process hasn't shutdown within 60 seconds. Terminate forcibly.
+                        if (process != null) {
+                            process.destroy();
+                        }
+                    }
+                });
+                shutdown.start();
+
+                // AS7-6620: Create the shutdown operation and run it asynchronously and wait for process to terminate
+                ModelNode op = new ModelNode();
+                op.get("operation").set("shutdown");
+                getManagementClient().getControllerClient().executeAsync(op, null);
+
                 process.waitFor();
                 process = null;
+
+                shutdown.interrupt();
             }
         } catch (Exception e) {
             throw new LifecycleException("Could not stop container", e);

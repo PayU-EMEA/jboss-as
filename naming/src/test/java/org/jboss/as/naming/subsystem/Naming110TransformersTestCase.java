@@ -21,16 +21,12 @@
  */
 package org.jboss.as.naming.subsystem;
 
-import static junit.framework.Assert.assertTrue;
-import static org.jboss.as.controller.PathElement.pathElement;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ADD;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.FAILURE_DESCRIPTION;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
-import static org.jboss.as.model.test.ModelTestUtils.checkFailedTransformedBootOperations;
 import static org.jboss.as.naming.subsystem.NamingExtension.SUBSYSTEM_NAME;
-import static org.jboss.as.naming.subsystem.NamingExtension.SUBSYSTEM_PATH;
 import static org.jboss.as.naming.subsystem.NamingExtension.VERSION_1_1_0;
 import static org.jboss.as.naming.subsystem.NamingSubsystemModel.BINDING;
 import static org.jboss.as.naming.subsystem.NamingSubsystemModel.BINDING_TYPE;
@@ -42,21 +38,23 @@ import static org.jboss.as.naming.subsystem.NamingSubsystemModel.SIMPLE;
 import static org.jboss.as.naming.subsystem.NamingSubsystemModel.TYPE;
 import static org.jboss.as.naming.subsystem.NamingSubsystemModel.VALUE;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.URL;
-
-import junit.framework.Assert;
 
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.model.test.FailedOperationTransformationConfig;
+import org.jboss.as.model.test.ModelTestControllerVersion;
+import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.AbstractSubsystemBaseTest;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
 import org.jboss.as.subsystem.test.KernelServices;
 import org.jboss.as.subsystem.test.KernelServicesBuilder;
 import org.jboss.dmr.ModelNode;
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -81,40 +79,46 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
     }
 
     @Test
-    public void testTransformers_AS713() throws Exception {
+    public void testOperationCompatibility() throws Exception {
+        KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization())
+                .setSubsystemXmlResource("subsystem_with_expressions_compatible_1.1.0.xml");
 
-        String subsystemXml = readResource("subsystem.xml");
-        KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization()).setSubsystemXml(
-                subsystemXml);
+        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), ModelTestControllerVersion.V7_1_2_FINAL, VERSION_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.2.Final");
 
-        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), VERSION_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.3.Final")
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:7.1.3.Final")
-                .addParentFirstClassPattern("org.jboss.as.controller.*");
+        KernelServices mainServices712 = builder.build();
+        KernelServices legacyServices712 = mainServices712.getLegacyServices(VERSION_1_1_0);
+        assertNotNull(legacyServices712);
 
-        KernelServices mainServices = builder.build();
-        KernelServices legacyServices = mainServices.getLegacyServices(VERSION_1_1_0);
-        assertNotNull(legacyServices);
+        builder = createKernelServicesBuilder(createAdditionalInitialization())
+                .setSubsystemXmlResource("subsystem_with_expressions_compatible_1.1.0.xml");
 
-        checkSimpleBindingTransformation(mainServices, VERSION_1_1_0);
-        checkObjectFactoryWithEnvironmentBindingTransformation(mainServices, VERSION_1_1_0);
+        builder.createLegacyKernelServicesBuilder(null, ModelTestControllerVersion.V7_1_3_FINAL, VERSION_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.3.Final");
 
-        checkSuccessfulObjectFactoryWithEnvironmentBindingTransformation(mainServices, VERSION_1_1_0);
-        checkSuccessfulSimpleBindingTransformation(mainServices, VERSION_1_1_0);
-
+        KernelServices mainServices713 = builder.build();
+        KernelServices legacyServices713 = mainServices713.getLegacyServices(VERSION_1_1_0);
+        assertNotNull(legacyServices713);
     }
+
 
     @Test
     public void testTransformers_AS712() throws Exception {
+        testTransformers(ModelTestControllerVersion.V7_1_2_FINAL);
+    }
 
-        String subsystemXml = readResource("subsystem.xml");
-        KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization()).setSubsystemXml(
-                subsystemXml);
+    @Test
+    public void testTransformers_AS713() throws Exception {
+        testTransformers(ModelTestControllerVersion.V7_1_3_FINAL);
+    }
 
-        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), VERSION_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.2.Final")
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:7.1.2.Final")
-                .addParentFirstClassPattern("org.jboss.as.controller.*");
+    private void testTransformers(ModelTestControllerVersion version) throws Exception {
+        KernelServicesBuilder builder = createKernelServicesBuilder(createAdditionalInitialization())
+                .setSubsystemXmlResource("subsystem.xml");
+
+        builder.createLegacyKernelServicesBuilder(null, version, VERSION_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-naming:" + version.getMavenGavVersion())
+                .skipReverseControllerCheck();
 
         KernelServices mainServices = builder.build();
         KernelServices legacyServices = mainServices.getLegacyServices(VERSION_1_1_0);
@@ -125,7 +129,6 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
 
         checkSuccessfulObjectFactoryWithEnvironmentBindingTransformation(mainServices, VERSION_1_1_0);
         checkSuccessfulSimpleBindingTransformation(mainServices, VERSION_1_1_0);
-
     }
 
     private void checkSuccessfulSimpleBindingTransformation(KernelServices mainServices, ModelVersion version_1_1_0)
@@ -188,7 +191,7 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
     }
 
     private void checkSuccessfulObjectFactoryWithEnvironmentBindingTransformation(KernelServices mainServices,
-            ModelVersion version_1_1_0) throws OperationFailedException {
+                                                                                  ModelVersion version_1_1_0) throws OperationFailedException {
 
         final ModelNode address = new ModelNode();
         address.add(SUBSYSTEM, SUBSYSTEM_NAME);
@@ -210,10 +213,8 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
         // create builder for legacy subsystem version
-        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), VERSION_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.2.Final")
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:7.1.2.Final")
-                .addParentFirstClassPattern("org.jboss.as.controller.*");
+        builder.createLegacyKernelServicesBuilder(null, ModelTestControllerVersion.V7_1_2_FINAL, VERSION_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.2.Final");
 
         doTestRejectExpressions_1_1_0(builder);
     }
@@ -223,10 +224,8 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
         // create builder for legacy subsystem version
-        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), VERSION_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.3.Final")
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:7.1.3.Final")
-                .addParentFirstClassPattern("org.jboss.as.controller.*");
+        builder.createLegacyKernelServicesBuilder(createAdditionalInitialization(), ModelTestControllerVersion.V7_1_3_FINAL, VERSION_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-naming:7.1.3.Final");
 
         doTestRejectExpressions_1_1_0(builder);
     }
@@ -244,11 +243,10 @@ public class Naming110TransformersTestCase extends AbstractSubsystemBaseTest {
         assertTrue(legacyServices.isSuccessfulBoot());
 
         //Use the real xml with expressions for testing all the attributes
-        PathAddress subsystemAddress = PathAddress.pathAddress(pathElement(SUBSYSTEM, SUBSYSTEM_NAME));
-        checkFailedTransformedBootOperations(
-                mainServices,
-                VERSION_1_1_0,
-                builder.parseXmlResource("subsystem_with_expressions_compatible_1.1.0.xml"),
-                new FailedOperationTransformationConfig());
+        ModelTestUtils.checkFailedTransformedBootOperations(mainServices, VERSION_1_1_0, parse(getSubsystemXml("subsystem.xml")),
+                new FailedOperationTransformationConfig()
+                        .addFailedAttribute(PathAddress.pathAddress(NamingExtension.SUBSYSTEM_PATH, NamingSubsystemModel.BINDING_PATH),
+                                new FailedOperationTransformationConfig.NewAttributesConfig(NamingSubsystemModel.OBJECT_FACTORY_ENV))
+        );
     }
 }

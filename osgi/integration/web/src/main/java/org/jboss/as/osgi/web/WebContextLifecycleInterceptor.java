@@ -21,10 +21,6 @@
  */
 package org.jboss.as.osgi.web;
 
-import static org.jboss.as.web.WebLogger.WEB_LOGGER;
-import static org.jboss.as.web.WebMessages.MESSAGES;
-import static org.jboss.as.web.WebSubsystemServices.JBOSS_WEB;
-
 import java.util.Dictionary;
 import java.util.Hashtable;
 import java.util.concurrent.TimeUnit;
@@ -32,9 +28,10 @@ import java.util.concurrent.TimeoutException;
 
 import javax.servlet.ServletContext;
 
-import org.apache.catalina.core.StandardContext;
 import org.jboss.as.controller.ServiceVerificationHandler;
-import org.jboss.as.web.deployment.WebDeploymentService.ContextActivator;
+import org.jboss.as.osgi.OSGiLogger;
+import org.jboss.as.osgi.OSGiMessages;
+import org.jboss.as.web.host.ContextActivator;
 import org.jboss.msc.service.Service;
 import org.jboss.msc.service.ServiceBuilder;
 import org.jboss.msc.service.ServiceController;
@@ -65,10 +62,10 @@ import org.osgi.framework.ServiceRegistration;
  */
 class WebContextLifecycleInterceptor extends AbstractLifecycleInterceptor implements Service<LifecycleInterceptor> {
 
-    static final ServiceName SERVICE_NAME = JBOSS_WEB.append(WebContextLifecycleInterceptor.class.getSimpleName());
+    static final ServiceName SERVICE_NAME = ServiceName.JBOSS.append("as", "osgi", "web").append(WebContextLifecycleInterceptor.class.getSimpleName());
 
     private final InjectedValue<BundleContext> injectedSystemContext = new InjectedValue<BundleContext>();
-    private ServiceRegistration registration;
+    private ServiceRegistration<LifecycleInterceptor> registration;
 
     static ServiceController<LifecycleInterceptor> addService(ServiceTarget serviceTarget, ServiceVerificationHandler verificationHandler) {
         WebContextLifecycleInterceptor service = new WebContextLifecycleInterceptor();
@@ -82,7 +79,7 @@ class WebContextLifecycleInterceptor extends AbstractLifecycleInterceptor implem
     @Override
     public void start(StartContext context) throws StartException {
         BundleContext syscontext = injectedSystemContext.getValue();
-        registration = syscontext.registerService(LifecycleInterceptor.class.getName(), this, null);
+        registration = syscontext.registerService(LifecycleInterceptor.class, this, null);
     }
 
     @Override
@@ -100,33 +97,31 @@ class WebContextLifecycleInterceptor extends AbstractLifecycleInterceptor implem
             switch (state) {
                 case Bundle.ACTIVE:
                     try {
-                        injectBundleContext(activator.getContext(), bundle.getBundleContext());
-                        if (!activator.start(4, TimeUnit.SECONDS)) {
-                            throw new LifecycleInterceptorException(MESSAGES.startContextFailed());
+                        injectBundleContext(activator.getServletContext(), bundle.getBundleContext());
+                        if (!activator.start(30, TimeUnit.SECONDS)) {
+                            throw new LifecycleInterceptorException(OSGiMessages.MESSAGES.startContextFailed());
                         }
                     } catch (TimeoutException ex) {
                         throw new LifecycleInterceptorException(ex.getMessage(), ex);
                     }
                     break;
                 case Bundle.RESOLVED:
-                    activator.stop(4, TimeUnit.SECONDS);
-                    uninjectBundleContext(activator.getContext());
+                    activator.stop(30, TimeUnit.SECONDS);
+                    uninjectBundleContext(activator.getServletContext());
                     break;
             }
         }
     }
 
-    private void injectBundleContext(StandardContext webContext, BundleContext bundleContext) {
-        WEB_LOGGER.debugf("Injecting bundle context %s into %s", bundleContext, webContext);
-        ServletContext servletContext = webContext.getServletContext();
-        servletContext.setAttribute(WebExtension.OSGI_BUNDLECONTEXT, bundleContext);
-        registerServletContextService(servletContext, bundleContext);
+    private void injectBundleContext(ServletContext webContext, BundleContext bundleContext) {
+        OSGiLogger.LOGGER.debugf("Injecting bundle context %s into %s", bundleContext, webContext);
+        webContext.setAttribute(WebExtension.OSGI_BUNDLECONTEXT, bundleContext);
+        registerServletContextService(webContext, bundleContext);
     }
 
-    private void uninjectBundleContext(StandardContext webContext) {
-        WEB_LOGGER.debugf("Uninjecting bundle context from %s", webContext);
-        ServletContext servletContext = webContext.getServletContext();
-        servletContext.removeAttribute(WebExtension.OSGI_BUNDLECONTEXT);
+    private void uninjectBundleContext(ServletContext webContext) {
+        OSGiLogger.LOGGER.debugf("Uninjecting bundle context from %s", webContext);
+        webContext.removeAttribute(WebExtension.OSGI_BUNDLECONTEXT);
     }
 
     private void registerServletContextService(ServletContext servletContext, BundleContext bundleContext) {

@@ -22,8 +22,6 @@
 
 package org.jboss.as.domain.management.security;
 
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PATH;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PLAIN_TEXT;
 import static org.jboss.as.domain.management.DomainManagementLogger.ROOT_LOGGER;
 import static org.jboss.as.domain.management.DomainManagementMessages.MESSAGES;
 import static org.jboss.as.domain.management.RealmConfigurationConstants.DIGEST_PLAIN_TEXT;
@@ -47,8 +45,7 @@ import javax.security.auth.callback.UnsupportedCallbackException;
 import javax.security.sasl.AuthorizeCallback;
 import javax.security.sasl.RealmCallback;
 
-import org.jboss.as.domain.management.AuthenticationMechanism;
-import org.jboss.dmr.ModelNode;
+import org.jboss.as.domain.management.AuthMechanism;
 import org.jboss.msc.service.Service;
 import org.jboss.sasl.callback.DigestHashCallback;
 import org.jboss.sasl.callback.VerifyPasswordCallback;
@@ -79,12 +76,12 @@ CallbackHandlerService, CallbackHandler {
      * CallbackHandlerService Methods
      */
 
-    public AuthenticationMechanism getPreferredMechanism() {
-        return AuthenticationMechanism.DIGEST;
+    public AuthMechanism getPreferredMechanism() {
+        return AuthMechanism.DIGEST;
     }
 
-    public Set<AuthenticationMechanism> getSupplementaryMechanisms() {
-        return Collections.singleton(AuthenticationMechanism.PLAIN);
+    public Set<AuthMechanism> getSupplementaryMechanisms() {
+        return Collections.singleton(AuthMechanism.PLAIN);
     }
 
     public Map<String, String> getConfigurationOptions() {

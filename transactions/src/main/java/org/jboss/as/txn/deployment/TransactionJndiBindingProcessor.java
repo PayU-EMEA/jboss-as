@@ -39,6 +39,8 @@ import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.DeploymentUnitProcessor;
 import org.jboss.as.txn.service.TransactionSynchronizationRegistryService;
+import org.jboss.as.txn.service.UserTransactionBindingService;
+import org.jboss.as.txn.service.UserTransactionAccessControlService;
 import org.jboss.as.txn.service.UserTransactionService;
 import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceTarget;
@@ -65,13 +67,13 @@ public class TransactionJndiBindingProcessor implements DeploymentUnitProcessor 
         //if this is a war we need to bind to the modules comp namespace
         if(DeploymentTypeMarker.isType(DeploymentType.WAR,deploymentUnit)) {
             final ServiceName moduleContextServiceName = ContextNames.contextServiceNameOfModule(moduleDescription.getApplicationName(),moduleDescription.getModuleName());
-            bindServices(deploymentUnit, serviceTarget,moduleDescription, moduleDescription.getModuleName(), moduleContextServiceName);
+            bindServices(deploymentUnit, serviceTarget, moduleContextServiceName);
         }
 
         for(ComponentDescription component : moduleDescription.getComponentDescriptions()) {
             if(component.getNamingMode() == ComponentNamingMode.CREATE) {
                 final ServiceName compContextServiceName = ContextNames.contextServiceNameOfComponent(moduleDescription.getApplicationName(),moduleDescription.getModuleName(),component.getComponentName());
-                bindServices(deploymentUnit, serviceTarget,moduleDescription, component.getComponentName(), compContextServiceName);
+                bindServices(deploymentUnit, serviceTarget, compContextServiceName);
             }
         }
 
@@ -84,11 +86,12 @@ public class TransactionJndiBindingProcessor implements DeploymentUnitProcessor 
      * @param serviceTarget The service target
      * @param contextServiceName The service name of the context to bind to
      */
-    private void bindServices(DeploymentUnit deploymentUnit, ServiceTarget serviceTarget, EEModuleDescription description,String componentName,ServiceName contextServiceName) {
+    private void bindServices(DeploymentUnit deploymentUnit, ServiceTarget serviceTarget, ServiceName contextServiceName) {
 
         final ServiceName userTransactionServiceName = contextServiceName.append("UserTransaction");
-        BinderService userTransactionBindingService = new BinderService("UserTransaction");
+        final UserTransactionBindingService userTransactionBindingService = new UserTransactionBindingService("UserTransaction");
         serviceTarget.addService(userTransactionServiceName, userTransactionBindingService)
+            .addDependency(UserTransactionAccessControlService.SERVICE_NAME, UserTransactionAccessControlService.class,userTransactionBindingService.getUserTransactionAccessControlServiceInjector())
             .addDependency(UserTransactionService.SERVICE_NAME, UserTransaction.class,
                     new ManagedReferenceInjector<UserTransaction>(userTransactionBindingService.getManagedObjectInjector()))
             .addDependency(contextServiceName, ServiceBasedNamingStore.class, userTransactionBindingService.getNamingStoreInjector())

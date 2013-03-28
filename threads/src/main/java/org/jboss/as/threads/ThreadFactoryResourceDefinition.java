@@ -24,7 +24,7 @@ package org.jboss.as.threads;
 
 import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.ReadResourceNameOperationStepHandler;
-import org.jboss.as.controller.ResourceDefinition;
+import org.jboss.as.controller.ServiceRemoveStepHandler;
 import org.jboss.as.controller.SimpleResourceDefinition;
 import org.jboss.as.controller.descriptions.StandardResourceDescriptionResolver;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
@@ -32,7 +32,7 @@ import org.jboss.as.controller.transform.description.RejectAttributeChecker;
 import org.jboss.as.controller.transform.description.ResourceTransformationDescriptionBuilder;
 
 /**
- * {@link ResourceDefinition} for a thread factory resource.
+ * {@link org.jboss.as.controller.ResourceDefinition} for a thread factory resource.
  *
  * @author Brian Stansberry (c) 2011 Red Hat Inc.
  */
@@ -47,7 +47,7 @@ public class ThreadFactoryResourceDefinition extends SimpleResourceDefinition {
                 new StandardResourceDescriptionResolver(CommonAttributes.THREAD_FACTORY, ThreadsExtension.RESOURCE_NAME,
                 ThreadsExtension.class.getClassLoader(), true, false),
                 ThreadFactoryAdd.INSTANCE,
-                ThreadFactoryRemove.INSTANCE);
+                new ServiceRemoveStepHandler(ThreadsServices.FACTORY, ThreadFactoryAdd.INSTANCE));
     }
 
     @Override

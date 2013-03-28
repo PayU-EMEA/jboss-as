@@ -21,7 +21,6 @@
  */
 package org.jboss.as.jacorb;
 
-import static junit.framework.Assert.assertTrue;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
 import static org.jboss.as.jacorb.JacORBSubsystemDefinitions.INTEROP_CHUNK_RMI_VALUETYPES;
 import static org.jboss.as.jacorb.JacORBSubsystemDefinitions.INTEROP_COMET;
@@ -64,10 +63,9 @@ import static org.jboss.as.jacorb.JacORBSubsystemDefinitions.SECURITY_SERVER_REQ
 import static org.jboss.as.jacorb.JacORBSubsystemDefinitions.SECURITY_SERVER_SUPPORTS;
 import static org.jboss.as.jacorb.JacORBSubsystemDefinitions.SECURITY_SUPPORT_SSL;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.List;
-
-import junit.framework.Assert;
 
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.PathAddress;
@@ -75,12 +73,14 @@ import org.jboss.as.controller.PathElement;
 import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.model.test.FailedOperationTransformationConfig;
 import org.jboss.as.model.test.ModelFixer;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.AbstractSubsystemTest;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
 import org.jboss.as.subsystem.test.KernelServices;
 import org.jboss.as.subsystem.test.KernelServicesBuilder;
 import org.jboss.dmr.ModelNode;
+import org.junit.Assert;
 import org.junit.Test;
 
 /**
@@ -95,22 +95,22 @@ public class JacORBTransformersTestCase extends AbstractSubsystemTest {
 
     @Test
     public void testTransformers712() throws Exception {
-        testTransformers("7.1.2.Final");
+        testTransformers(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformers713() throws Exception {
-        testTransformers("7.1.3.Final");
+        testTransformers(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformers(String asVersion) throws Exception {
+    private void testTransformers(ModelTestControllerVersion controllerVersion) throws Exception {
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT)
                 .setSubsystemXml(readResource("subsystem-1.2.xml"));
 
         // Add legacy subsystems
         ModelVersion version_1_1_0 = ModelVersion.create(1, 1, 0);
-        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, version_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, version_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         assertTrue(mainServices.isSuccessfulBoot());
@@ -127,22 +127,22 @@ public class JacORBTransformersTestCase extends AbstractSubsystemTest {
 
     @Test
     public void testTransformersSecurityIdentity712() throws Exception {
-        testTransformersSecurityIdentity_1_1_0("7.1.2.Final");
+        testTransformersSecurityIdentity_1_1_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformersSecurityIdentity713() throws Exception {
-        testTransformersSecurityIdentity_1_1_0("7.1.3.Final");
+        testTransformersSecurityIdentity_1_1_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformersSecurityIdentity_1_1_0(String asVersion) throws Exception {
+    private void testTransformersSecurityIdentity_1_1_0(ModelTestControllerVersion controllerVersion) throws Exception {
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT)
                 .setSubsystemXml(readResource("subsystem-1.2-security-identity.xml"));
 
         // Add legacy subsystems
         ModelVersion version_1_1_0 = ModelVersion.create(1, 1, 0);
-        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, version_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, controllerVersion, version_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         assertTrue(mainServices.isSuccessfulBoot());
@@ -159,23 +159,23 @@ public class JacORBTransformersTestCase extends AbstractSubsystemTest {
 
     @Test
     public void testTransformersSecurityClient712() throws Exception {
-        testTransformersSecurityClient_1_1_0("7.1.2.Final");
+        testTransformersSecurityClient_1_1_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformersSecurityClient713() throws Exception {
-        testTransformersSecurityClient_1_1_0("7.1.3.Final");
+        testTransformersSecurityClient_1_1_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    private void testTransformersSecurityClient_1_1_0(String asVersion) throws Exception {
+    private void testTransformersSecurityClient_1_1_0(ModelTestControllerVersion controllerVersion) throws Exception {
         //security=client is not allowed on 7.1.2
 
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
         // Add legacy subsystems
         ModelVersion version_1_1_0 = ModelVersion.create(1, 1, 0);
-        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, version_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, controllerVersion, version_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         assertTrue(mainServices.isSuccessfulBoot());
@@ -218,23 +218,23 @@ public class JacORBTransformersTestCase extends AbstractSubsystemTest {
 
     @Test
     public void testTransformersRejectedExpressions712() throws Exception {
-        testTransformersRejectedExpressions("7.1.2.Final");
+        testTransformersRejectedExpressions(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
 
     @Test
     public void testTransformersRejectedExpressions713() throws Exception {
-        testTransformersRejectedExpressions("7.1.3.Final");
+        testTransformersRejectedExpressions(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
-    public void testTransformersRejectedExpressions(String asVersion) throws Exception {
+    private void testTransformersRejectedExpressions(ModelTestControllerVersion controllerVersion) throws Exception {
 
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
         // Add legacy subsystems
         ModelVersion version_1_1_0 = ModelVersion.create(1, 1, 0);
-        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, version_1_1_0)
-                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + asVersion);
+        builder.createLegacyKernelServicesBuilder(AdditionalInitialization.MANAGEMENT, controllerVersion, version_1_1_0)
+                .addMavenResourceURL("org.jboss.as:jboss-as-jacorb:" + controllerVersion.getMavenGavVersion());
 
         KernelServices mainServices = builder.build();
         assertTrue(mainServices.isSuccessfulBoot());

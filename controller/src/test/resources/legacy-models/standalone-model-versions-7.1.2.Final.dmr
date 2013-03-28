@@ -3,12 +3,7 @@
         "management-major-version" => 1,
         "management-minor-version" => 2
     }},
-    "subsystem" => {
-        "cmp" => {
-            "management-major-version" => 1,
-            "management-minor-version" => 0,
-            "xml-namespaces" => ["urn:jboss:domain:cmp:1.0"]
-        },
+    "subsystem" => {        
         "configadmin" => {
             "management-major-version" => 1,
             "management-minor-version" => 0,
@@ -65,14 +60,6 @@
                 "urn:jboss:domain:jacorb:1.0",
                 "urn:jboss:domain:jacorb:1.1",
                 "urn:jboss:domain:jacorb:1.2"
-            ]
-        },
-        "jaxr" => {
-            "management-major-version" => 1,
-            "management-minor-version" => 1,
-            "xml-namespaces" => [
-                "urn:jboss:domain:jaxr:1.1",
-                "urn:jboss:domain:jaxr:1.0"
             ]
         },
         "jaxrs" => {

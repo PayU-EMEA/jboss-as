@@ -22,11 +22,14 @@
 
 package org.jboss.as.connector.subsystems.common.pool;
 
+import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import org.jboss.as.connector.util.ConnectorServices;
 import org.jboss.as.connector.subsystems.datasources.Util;
+import org.jboss.as.connector.util.ConnectorServices;
 import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.OperationStepHandler;
@@ -39,9 +42,6 @@ import org.jboss.jca.core.api.management.Connector;
 import org.jboss.jca.core.api.management.DataSource;
 import org.jboss.jca.core.api.management.ManagementRepository;
 import org.jboss.msc.service.ServiceController;
-
-import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
 
 public abstract class PoolOperations implements OperationStepHandler {
 
@@ -99,8 +99,8 @@ public abstract class PoolOperations implements OperationStepHandler {
     protected abstract ModelNode invokeCommandOn(Pool pool) throws Exception;
 
     public static class FlushIdleConnectionInPool extends PoolOperations {
-        public static FlushIdleConnectionInPool DS_INSTANCE = new FlushIdleConnectionInPool(new DsPoolMatcher());
-        public static FlushIdleConnectionInPool RA_INSTANCE = new FlushIdleConnectionInPool(new RaPoolMatcher());
+        public static final FlushIdleConnectionInPool DS_INSTANCE = new FlushIdleConnectionInPool(new DsPoolMatcher());
+        public static final FlushIdleConnectionInPool RA_INSTANCE = new FlushIdleConnectionInPool(new RaPoolMatcher());
 
         protected FlushIdleConnectionInPool(PoolMatcher matcher) {
             super(matcher);
@@ -115,8 +115,8 @@ public abstract class PoolOperations implements OperationStepHandler {
     }
 
     public static class FlushAllConnectionInPool extends PoolOperations {
-        public static FlushAllConnectionInPool DS_INSTANCE = new FlushAllConnectionInPool(new DsPoolMatcher());
-        public static FlushAllConnectionInPool RA_INSTANCE = new FlushAllConnectionInPool(new RaPoolMatcher());
+        public static final FlushAllConnectionInPool DS_INSTANCE = new FlushAllConnectionInPool(new DsPoolMatcher());
+        public static final FlushAllConnectionInPool RA_INSTANCE = new FlushAllConnectionInPool(new RaPoolMatcher());
 
         protected FlushAllConnectionInPool(PoolMatcher matcher) {
             super(matcher);
@@ -131,8 +131,8 @@ public abstract class PoolOperations implements OperationStepHandler {
     }
 
     public static class TestConnectionInPool extends PoolOperations {
-        public static TestConnectionInPool DS_INSTANCE = new TestConnectionInPool(new DsPoolMatcher());
-        public static TestConnectionInPool RA_INSTANCE = new TestConnectionInPool(new RaPoolMatcher());
+        public static final TestConnectionInPool DS_INSTANCE = new TestConnectionInPool(new DsPoolMatcher());
+        public static final TestConnectionInPool RA_INSTANCE = new TestConnectionInPool(new RaPoolMatcher());
 
         protected TestConnectionInPool(PoolMatcher matcher) {
             super(matcher);

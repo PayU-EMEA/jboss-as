@@ -21,21 +21,27 @@
  */
 package org.jboss.as.naming;
 
-import java.util.Hashtable;
-
 import javax.naming.Context;
 import javax.naming.Name;
 import javax.naming.NamingException;
 import javax.naming.spi.ObjectFactory;
+import java.util.Hashtable;
 
-import junit.framework.Assert;
-
+import org.junit.Assert;
 import org.junit.Test;
+import org.junit.Before;
+
 
 /**
  * @author David Bosschaert
  */
 public class InitialContextTestCase {
+
+    @Before
+    public void before() {
+        NamingContext.setActiveNamingStore(new InMemoryNamingStore());
+    }
+
     @Test
     public void testRegisterURLSchemeHandler() throws Exception {
         InitialContext ictx = new InitialContext(null);

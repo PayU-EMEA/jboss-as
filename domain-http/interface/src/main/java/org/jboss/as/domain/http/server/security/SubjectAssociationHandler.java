@@ -1,6 +1,6 @@
 /*
  * JBoss, Home of Professional Open Source.
- * Copyright 2012, Red Hat, Inc., and individual contributors
+ * Copyright 2013, Red Hat, Inc., and individual contributors
  * as indicated by the @author tags. See the copyright.txt file in the
  * distribution for a full listing of individual contributors.
  *
@@ -19,19 +19,15 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-
 package org.jboss.as.domain.http.server.security;
 
-import java.io.IOException;
-
-import javax.security.auth.Subject;
-
-import org.jboss.com.sun.net.httpserver.HttpExchange;
-import org.jboss.com.sun.net.httpserver.HttpExchange.AttributeScope;
-import org.jboss.com.sun.net.httpserver.HttpHandler;
+import io.undertow.security.api.SecurityContext;
+import io.undertow.security.idm.Account;
+import io.undertow.server.HttpHandler;
+import io.undertow.server.HttpServerExchange;
 
 /**
- * Handler to ensure that the Subject for the authenticated user is associated for this request.
+ * HttpHandler to ensure the Subject for the current authenticated user is correctly associated for the request.
  *
  * @author <a href="mailto:darran.lofthouse@jboss.com">Darran Lofthouse</a>
  */
@@ -39,16 +35,21 @@ public class SubjectAssociationHandler implements HttpHandler {
 
     private final HttpHandler wrapped;
 
-    public SubjectAssociationHandler(HttpHandler wrapped) {
-        this.wrapped = wrapped;
+    public SubjectAssociationHandler(final HttpHandler toWrap) {
+        this.wrapped = toWrap;
     }
 
     @Override
-    public void handle(HttpExchange exchange) throws IOException {
-        Subject subject = (Subject) exchange.getAttribute(Subject.class.getName(), AttributeScope.CONNECTION);
-        SecurityActions.setSecurityContextSubject(subject);
+    public void handleRequest(HttpServerExchange exchange) throws Exception {
+        SecurityContext securityContext = exchange.getAttachment(SecurityContext.ATTACHMENT_KEY);
         try {
-            wrapped.handle(exchange);
+            if (securityContext != null) {
+                Account account = securityContext.getAuthenticatedAccount();
+                if (account instanceof SubjectAccount) {
+                    SecurityActions.setSecurityContextSubject(((SubjectAccount) account).getSubject());
+                }
+            }
+            wrapped.handleRequest(exchange);
         } finally {
             SecurityActions.clearSubjectSecurityContext();
         }

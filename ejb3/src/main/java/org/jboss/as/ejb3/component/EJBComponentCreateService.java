@@ -42,6 +42,7 @@ import org.jboss.as.ejb3.component.interceptors.ShutDownInterceptorFactory;
 import org.jboss.as.ejb3.deployment.ApplicationExceptions;
 import org.jboss.as.ejb3.remote.EJBRemoteTransactionsRepository;
 import org.jboss.as.ejb3.security.EJBSecurityMetaData;
+import org.jboss.as.ejb3.util.MethodInfoHelper;
 import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.invocation.InterceptorFactory;
 import org.jboss.invocation.Interceptors;
@@ -114,7 +115,7 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
         // Setup the security metadata for the bean
         this.securityMetaData = new EJBSecurityMetaData(componentConfiguration);
 
-        if (ejbComponentDescription.isTimerServiceApplicable()) {
+        if (ejbComponentDescription.isTimerServiceRequired()) {
             Map<Method, InterceptorFactory> timeoutInterceptors = new IdentityHashMap<Method, InterceptorFactory>();
             for (Method method : componentConfiguration.getDefinedComponentMethods()) {
                 if ((ejbComponentDescription.getTimeoutMethod() != null && ejbComponentDescription.getTimeoutMethod().equals(method)) ||
@@ -230,22 +231,14 @@ public class EJBComponentCreateService extends BasicComponentCreateService {
 
         String className = method.getDeclaringClass().getName();
         String methodName = method.getName();
-        TransactionAttributeType txAttr = ejbComponentDescription.getTransactionAttributes().getAttribute(methodIntf, className, methodName, toString(method.getParameterTypes()));
+        TransactionAttributeType txAttr = ejbComponentDescription.getTransactionAttributes().getAttribute(methodIntf, className, methodName, MethodInfoHelper.getCanonicalParameterTypes(method));
         if (txAttr != TransactionAttributeType.REQUIRED) {
             txAttrs.put(new MethodTransactionAttributeKey(methodIntf, MethodIdentifier.getIdentifierForMethod(method)), txAttr);
         }
-        Integer txTimeout = ejbComponentDescription.getTransactionTimeouts().getAttribute(methodIntf, className, methodName, toString(method.getParameterTypes()));
+        Integer txTimeout = ejbComponentDescription.getTransactionTimeouts().getAttribute(methodIntf, className, methodName, MethodInfoHelper.getCanonicalParameterTypes(method));
         if (txTimeout != null) {
             txTimeouts.put(new MethodTransactionAttributeKey(methodIntf, MethodIdentifier.getIdentifierForMethod(method)), txTimeout);
         }
-    }
-
-    private static String[] toString(Class<?>[] a) {
-        final String[] result = new String[a.length];
-        for (int i = 0; i < result.length; i++) {
-            result[i] = a[i].getName();
-        }
-        return result;
     }
 
     public Map<String, ServiceName> getViewServices() {

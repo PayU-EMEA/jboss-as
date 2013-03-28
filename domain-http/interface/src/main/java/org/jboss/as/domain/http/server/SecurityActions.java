@@ -22,12 +22,10 @@
 
 package org.jboss.as.domain.http.server;
 
-import java.security.AccessController;
-import java.security.PrivilegedAction;
+import org.jboss.as.util.security.ReadPropertyAction;
 
-import javax.security.auth.Subject;
-
-import org.jboss.as.controller.security.SecurityContext;
+import static java.lang.System.getSecurityManager;
+import static java.security.AccessController.doPrivileged;
 
 /**
  * Security Actions for classes in the org.jboss.as.domain.http.server package.
@@ -35,19 +33,11 @@ import org.jboss.as.controller.security.SecurityContext;
  * No methods in this class are to be made public under any circumstances!
  *
  * @author Brian Stansberry (c) 2012 Red Hat Inc.
+ * @author <a href="mailto:david.lloyd@redhat.com">David M. Lloyd</a>
  */
 class SecurityActions {
 
-
     static String getProperty(final String key) {
-        if (System.getSecurityManager() == null) {
-            return System.getProperty(key);
-        }
-        return AccessController.doPrivileged(new PrivilegedAction<String>() {
-            public String run() {
-                return System.getProperty(key);
-            }
-        });
+        return getSecurityManager() == null ? System.getProperty(key) : doPrivileged(new ReadPropertyAction(key));
     }
-
 }

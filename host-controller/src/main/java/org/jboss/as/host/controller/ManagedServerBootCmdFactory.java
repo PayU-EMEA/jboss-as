@@ -39,7 +39,6 @@ import java.util.Map.Entry;
 
 import org.jboss.as.controller.ExpressionResolver;
 import org.jboss.as.controller.OperationFailedException;
-import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.domain.controller.resources.ServerGroupResourceDefinition;
 import org.jboss.as.host.controller.ManagedServer.ManagedServerBootConfiguration;
 import org.jboss.as.host.controller.model.host.HostResourceDefinition;
@@ -151,7 +150,7 @@ class ManagedServerBootCmdFactory implements ManagedServerBootConfiguration {
      *
      * @return the directory grouping found in the model.
      *
-     * @throws IllegalArgumentException if the {@link ModelDescriptionConstants#DIRECTORY_GROUPING directory grouping}
+     * @throws IllegalArgumentException if the {@link org.jboss.as.controller.descriptions.ModelDescriptionConstants#DIRECTORY_GROUPING directory grouping}
      *                                  was not found in the model.
      */
     private static DirectoryGrouping resolveDirectoryGrouping(final ModelNode model, final ExpressionResolver expressionResolver) {
@@ -220,10 +219,13 @@ class ManagedServerBootCmdFactory implements ManagedServerBootConfiguration {
         if (loggingConfig.exists()) {
             path = "file:" + loggingConfig.getAbsolutePath();
         } else {
-            command.add("-Dorg.jboss.boot.log.file=" + getAbsolutePath(new File(logDir), "boot.log"));
+            // Sets the initial log file to use
+            command.add("-Dorg.jboss.boot.log.file=" + getAbsolutePath(new File(logDir), "server.log"));
             final String fileName = SecurityActions.getSystemProperty("logging.configuration");
             if (fileName == null) {
-                path = "file:" + getAbsolutePath(environment.getDomainConfigurationDir(), "logging.properties");
+                // If nothing else is defined use a default logging configuration that matches the default from the
+                // standalone server. This allows a single log file to be used.
+                path = "file:" + getAbsolutePath(environment.getDomainConfigurationDir(), "default-server-logging.properties");
             } else {
                 path = fileName;
             }
@@ -234,8 +236,6 @@ class ManagedServerBootCmdFactory implements ManagedServerBootConfiguration {
         command.add(getAbsolutePath(environment.getHomeDir(), "jboss-modules.jar"));
         command.add("-mp");
         command.add(environment.getModulePath());
-        command.add("-jaxpmodule");
-        command.add("javax.xml.jaxp-provider");
         command.add("org.jboss.as.server");
 
         return command;

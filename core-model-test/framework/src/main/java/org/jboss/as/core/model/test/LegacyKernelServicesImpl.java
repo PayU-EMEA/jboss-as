@@ -50,6 +50,7 @@ import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.controller.transform.OperationTransformer.TransformedOperation;
 import org.jboss.as.domain.controller.LocalHostControllerInfo;
 import org.jboss.as.domain.controller.operations.ApplyRemoteMasterDomainModelHandler;
+import org.jboss.as.host.controller.discovery.DiscoveryOption;
 import org.jboss.as.host.controller.ignored.IgnoreDomainResourceTypeResource;
 import org.jboss.as.host.controller.ignored.IgnoredDomainResourceRegistry;
 import org.jboss.as.management.client.content.ManagedDMRContentTypeResource;
@@ -145,7 +146,12 @@ public class LegacyKernelServicesImpl extends AbstractKernelServicesImpl {
                         resource.writeModel(resourceDescription.get("domain-resource-model"));
                     }
 
-                    context.completeStep();
+                    context.completeStep(new OperationContext.RollbackHandler() {
+                        @Override
+                        public void handleRollback(OperationContext context, ModelNode operation) {
+                            // no-op
+                        }
+                    });
                 }catch (Exception e) {
                     throw new OperationFailedException(e.getMessage());
                 }
@@ -200,13 +206,7 @@ public class LegacyKernelServicesImpl extends AbstractKernelServicesImpl {
                 return null;
             }
 
-            @Override
-            public int getRemoteDomainControllerPort() {
-                return 0;
-            }
-
-            @Override
-            public String getRemoteDomainControllerHost() {
+            public List<DiscoveryOption> getRemoteDomainControllerDiscoveryOptions() {
                 return null;
             }
 

@@ -22,10 +22,16 @@
 
 package org.jboss.as.connector.services.resourceadapters.deployment;
 
-import org.jboss.as.connector.util.ConnectorServices;
+import static org.jboss.as.connector.logging.ConnectorLogger.DEPLOYMENT_CONNECTOR_LOGGER;
+import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
+
+import java.io.File;
+import java.net.URL;
+
 import org.jboss.as.connector.metadata.deployment.ResourceAdapterDeployment;
 import org.jboss.as.connector.metadata.xmldescriptors.ConnectorXmlDescriptor;
 import org.jboss.as.connector.services.resourceadapters.ResourceAdapterService;
+import org.jboss.as.connector.util.ConnectorServices;
 import org.jboss.as.naming.WritableServiceBasedNamingStore;
 import org.jboss.jca.common.api.metadata.ironjacamar.IronJacamar;
 import org.jboss.jca.common.api.metadata.ra.Connector;
@@ -43,12 +49,6 @@ import org.jboss.msc.service.StartContext;
 import org.jboss.msc.service.StartException;
 import org.jboss.msc.service.StopContext;
 
-import java.io.File;
-import java.net.URL;
-
-import static org.jboss.as.connector.logging.ConnectorLogger.DEPLOYMENT_CONNECTOR_LOGGER;
-import static org.jboss.as.connector.logging.ConnectorMessages.MESSAGES;
-
 /**
  * A ResourceAdapterXmlDeploymentService.
  * @author <a href="mailto:stefano.maestri@redhat.com">Stefano Maestri</a>
@@ -61,7 +61,8 @@ public final class ResourceAdapterXmlDeploymentService extends AbstractResourceA
 
     private final Module module;
     private final ConnectorXmlDescriptor connectorXmlDescriptor;
-    private final ResourceAdapter raxml;
+
+    private ResourceAdapter raxml;
     private final String deployment;
 
     private String raName;
@@ -72,12 +73,14 @@ public final class ResourceAdapterXmlDeploymentService extends AbstractResourceA
     public ResourceAdapterXmlDeploymentService(ConnectorXmlDescriptor connectorXmlDescriptor, ResourceAdapter raxml,
                                                Module module, final String deployment, final ServiceName deploymentServiceName, final ServiceName duServiceName) {
         this.connectorXmlDescriptor = connectorXmlDescriptor;
-        this.raxml = raxml;
+        synchronized (this) {
+            this.raxml = raxml;
+        }
         this.module = module;
         this.deployment = deployment;
-        if (raxml != null && raxml.getArchive() != null && raxml.getArchive().indexOf(".rar") != -1)    {
-             this.raName = raxml.getArchive().substring(0, raxml.getArchive().indexOf(".rar"));
-        }   else {
+        if (raxml != null && raxml.getArchive() != null && raxml.getArchive().indexOf(".rar") != -1) {
+            this.raName = raxml.getArchive().substring(0, raxml.getArchive().indexOf(".rar"));
+        } else {
             this.raName = deployment;
         }
         this.deploymentServiceName = deploymentServiceName;
@@ -93,10 +96,11 @@ public final class ResourceAdapterXmlDeploymentService extends AbstractResourceA
             Connector cmd = mdr.getValue().getResourceAdapter(deployment);
             File root = mdr.getValue().getRoot(deployment);
 
-            cmd = (new Merger()).mergeConnectorWithCommonIronJacamar(raxml, cmd);
+            ResourceAdapter localRaXml = getRaxml();
+            cmd = (new Merger()).mergeConnectorWithCommonIronJacamar(localRaXml, cmd);
 
             final AS7RaXmlDeployer raDeployer = new AS7RaXmlDeployer(context.getChildTarget(), connectorXmlDescriptor.getUrl(),
-                raName, root, module.getClassLoader(), cmd, raxml, null, deploymentServiceName);
+                raName, root, module.getClassLoader(), cmd, localRaXml, null, deploymentServiceName);
 
             raDeployer.setConfiguration(config.getValue());
 
@@ -159,6 +163,15 @@ public final class ResourceAdapterXmlDeploymentService extends AbstractResourceA
     public CommonDeployment getRaxmlDeployment() {
         return raxmlDeployment;
     }
+
+    public synchronized void setRaxml(ResourceAdapter raxml) {
+            this.raxml = raxml;
+    }
+
+    public synchronized ResourceAdapter getRaxml() {
+            return raxml;
+    }
+
 
     private class AS7RaXmlDeployer extends AbstractAS7RaDeployer {
 

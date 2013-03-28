@@ -31,6 +31,8 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.PRO
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.ROLLBACK_ON_RUNTIME_FAILURE;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
 
+import javax.management.ObjectName;
+import javax.xml.namespace.QName;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -42,11 +44,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import javax.management.ObjectName;
-import javax.xml.namespace.QName;
 
-import junit.framework.Assert;
-import junit.framework.AssertionFailedError;
 import org.jboss.arquillian.container.test.api.ContainerController;
 import org.jboss.arquillian.container.test.api.Deployer;
 import org.jboss.arquillian.container.test.api.Deployment;
@@ -139,6 +137,7 @@ import org.jboss.shrinkwrap.api.asset.Asset;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.jboss.vfs.VirtualFile;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -290,35 +289,6 @@ public class ParseAndMarshalModelsTestCase {
         standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-2-ha.xml"));
     }
 
-    @Test
-    public void test700StandalonePreviewXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-0-preview.xml"));
-    }
-
-    @Test
-    public void test701StandalonePreviewXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-1-preview.xml"));
-    }
-
-    @Test
-    public void test702StandalonePreviewXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-2-preview.xml"));
-    }
-
-    @Test
-    public void test700StandalonePreviewHAXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-0-preview.xml"));
-    }
-
-    @Test
-    public void test701StandalonePreviewHAXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-1-preview-ha.xml"));
-    }
-
-    @Test
-    public void test702StandalonePreviewHAXml() throws Exception {
-        standaloneXmlTest(getLegacyConfigFile("standalone", "7-0-2-preview-ha.xml"));
-    }
 
     @Test
     public void test701StandaloneXtsXml() throws Exception {
@@ -604,24 +574,6 @@ public class ParseAndMarshalModelsTestCase {
 
     @Test
     @TargetsContainer("class-jbossas")
-    public void test700DomainPreviewXml() throws Exception {
-        domainXmlTest(getLegacyConfigFile("domain", "7-0-0-preview.xml"));
-    }
-
-    @Test
-    @TargetsContainer("class-jbossas")
-    public void test701DomainPreviewXml() throws Exception {
-        domainXmlTest(getLegacyConfigFile("domain", "7-0-1-preview.xml"));
-    }
-
-    @Test
-    @TargetsContainer("class-jbossas")
-    public void test702DomainPreviewXml() throws Exception {
-        domainXmlTest(getLegacyConfigFile("domain", "7-0-2-preview.xml"));
-    }
-
-    @Test
-    @TargetsContainer("class-jbossas")
     public void test710DomainXml() throws Exception {
         ModelNode model = domainXmlTest(getLegacyConfigFile("domain", "7-1-0.xml"));
         validateJsfProfiles(model);
@@ -730,11 +682,7 @@ public class ParseAndMarshalModelsTestCase {
             compare(prop1.getValue(), prop2.getValue());
 
         } else {
-            try {
-                Assert.assertEquals("\n\"" + node1.asString() + "\"\n\"" + node2.asString() + "\"\n-----", node1.asString().trim(), node2.asString().trim());
-            } catch (AssertionFailedError error) {
-                throw error;
-            }
+            Assert.assertEquals("\n\"" + node1.asString() + "\"\n\"" + node2.asString() + "\"\n-----", node1.asString().trim(), node2.asString().trim());
         }
     }
 

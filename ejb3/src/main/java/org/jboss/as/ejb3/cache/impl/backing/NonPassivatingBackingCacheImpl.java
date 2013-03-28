@@ -31,12 +31,10 @@ import java.util.concurrent.ThreadFactory;
 
 import javax.ejb.NoSuchEJBException;
 
-import org.jboss.as.ejb3.EjbLogger;
 import org.jboss.as.ejb3.EjbMessages;
 import org.jboss.as.ejb3.cache.Cacheable;
 import org.jboss.as.ejb3.cache.IdentifierFactory;
 import org.jboss.as.ejb3.cache.StatefulObjectFactory;
-import org.jboss.as.ejb3.cache.spi.BackingCache;
 import org.jboss.as.ejb3.cache.spi.BackingCacheEntryFactory;
 import org.jboss.as.ejb3.cache.spi.BackingCacheLifecycleListener.LifecycleState;
 import org.jboss.as.ejb3.cache.spi.impl.AbstractBackingCache;
@@ -47,7 +45,7 @@ import org.jboss.ejb.client.Affinity;
 import org.jboss.ejb.client.NodeAffinity;
 
 /**
- * Simple {@link BackingCache} that doesn't handle passivation (although it does handle expiration). Pure in-VM memory cache.
+ * Simple {@link org.jboss.as.ejb3.cache.spi.BackingCache} that doesn't handle passivation (although it does handle expiration). Pure in-VM memory cache.
  * Not group-aware, as there is no point in managing groups if there is no serialization.
  *
  * @author <a href="mailto:carlo.dewolf@jboss.com">Carlo de Wolf</a>

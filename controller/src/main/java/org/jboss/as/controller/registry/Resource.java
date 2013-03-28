@@ -186,7 +186,7 @@ public interface Resource extends Cloneable {
 
     public static class Tools {
 
-        public static ResourceFilter ALL_BUT_RUNTIME_AND_PROXIES_FILTER = new ResourceFilter() {
+        public static final ResourceFilter ALL_BUT_RUNTIME_AND_PROXIES_FILTER = new ResourceFilter() {
             @Override
             public boolean accepts(PathAddress address, Resource resource) {
                 if(resource.isRuntime() || resource.isProxy()) {
@@ -279,6 +279,8 @@ public interface Resource extends Cloneable {
      * management operation.
      */
     public static class NoSuchResourceException extends NoSuchElementException implements OperationClientException {
+
+        private static final long serialVersionUID = -2409240663987141424L;
 
         public NoSuchResourceException(PathElement childPath) {
             super(ControllerMessages.MESSAGES.childResourceNotFound(childPath));

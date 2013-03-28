@@ -56,11 +56,13 @@ import org.jboss.as.server.deployment.reflect.ClassReflectionIndexUtil;
 import org.jboss.as.server.deployment.reflect.DeploymentClassIndex;
 import org.jboss.as.server.deployment.reflect.DeploymentReflectionIndex;
 import org.jboss.as.server.deployment.reflect.ProxyMetadataSource;
+import org.jboss.invocation.ContextClassLoaderInterceptor;
 import org.jboss.invocation.ImmediateInterceptorFactory;
 import org.jboss.invocation.Interceptor;
 import org.jboss.invocation.InterceptorFactory;
 import org.jboss.invocation.InterceptorFactoryContext;
 import org.jboss.invocation.Interceptors;
+import org.jboss.invocation.PrivilegedInterceptor;
 import org.jboss.invocation.proxy.MethodIdentifier;
 import org.jboss.invocation.proxy.ProxyConfiguration;
 import org.jboss.invocation.proxy.ProxyFactory;
@@ -500,12 +502,28 @@ public class ComponentDescription implements ResourceInjectionTarget {
     }
 
     /**
-     * TODO: change this to a per method setting
      *
-     * @return true if timer service interceptor chains should be built for this component
+     *
+     * @return true If this component type is eligible for a timer service
      */
     public boolean isTimerServiceApplicable() {
         return false;
+    }
+
+    /**
+     *
+     * @return <code>true</code> if this component has timeout methods and is eligible for a 'real' timer service
+     */
+    public boolean isTimerServiceRequired() {
+        return isTimerServiceApplicable() && !getTimerMethods().isEmpty();
+    }
+
+    /**
+     *
+     * @return The set of all method identifiers for the timeout methods
+     */
+    public Set<MethodIdentifier> getTimerMethods() {
+        return Collections.emptySet();
     }
 
     public boolean isPassivationApplicable() {
@@ -579,13 +597,15 @@ public class ComponentDescription implements ResourceInjectionTarget {
             final Map<String, List<InterceptorFactory>> userPostConstructByInterceptorClass = new HashMap<String, List<InterceptorFactory>>();
             final Map<String, List<InterceptorFactory>> userPreDestroyByInterceptorClass = new HashMap<String, List<InterceptorFactory>>();
 
-            if (description.isTimerServiceApplicable()) {
+            final Set<MethodIdentifier> timeoutMethods = description.getTimerMethods();
+            if (description.isTimerServiceRequired()) {
                 componentUserAroundTimeout = new ArrayList<InterceptorFactory>();
                 userAroundTimeoutsByInterceptorClass = new HashMap<String, List<InterceptorFactory>>();
             } else {
                 componentUserAroundTimeout = null;
                 userAroundTimeoutsByInterceptorClass = null;
             }
+
 
             if (description.isPassivationApplicable()) {
                 userPrePassivatesByInterceptorClass = new HashMap<String, List<InterceptorFactory>>();
@@ -614,7 +634,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
             new ClassDescriptionTraversal(configuration.getComponentClass(), applicationClasses) {
                 @Override
                 public void handle(Class<?> clazz, EEModuleClassDescription classDescription) throws DeploymentUnitProcessingException {
-                    mergeInjectionsForClass(clazz, classDescription, moduleDescription, description, configuration, context, injectors, instanceKey, uninjectors, metadataComplete);
+                    mergeInjectionsForClass(clazz, configuration.getComponentClass(), classDescription, moduleDescription, deploymentReflectionIndex, description, configuration, context, injectors, instanceKey, uninjectors, metadataComplete);
                 }
             }.run();
 
@@ -663,7 +683,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                 new ClassDescriptionTraversal(interceptorClass.getModuleClass(), applicationClasses) {
                     @Override
                     public void handle(final Class<?> clazz, EEModuleClassDescription classDescription) throws DeploymentUnitProcessingException {
-                        mergeInjectionsForClass(clazz, classDescription, moduleDescription, description, configuration, context, injectors, contextKey, uninjectors, metadataComplete);
+                        mergeInjectionsForClass(clazz, interceptorClass.getModuleClass(), classDescription, moduleDescription, deploymentReflectionIndex, description, configuration, context, injectors, contextKey, uninjectors, metadataComplete);
                         final InterceptorClassDescription interceptorConfig;
                         if (classDescription != null && !metadataComplete) {
                             interceptorConfig = InterceptorClassDescription.merge(classDescription.getInterceptorClassDescription(), moduleDescription.getInterceptorClassOverride(clazz.getName()));
@@ -683,7 +703,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                         final MethodIdentifier aroundInvokeMethodIdentifier = interceptorConfig.getAroundInvoke();
                         handleInterceptorClass(clazz, aroundInvokeMethodIdentifier, userAroundInvokesByInterceptorClass, false, false);
 
-                        if (description.isTimerServiceApplicable()) {
+                        if (description.isTimerServiceRequired()) {
                             final MethodIdentifier aroundTimeoutMethodIdentifier = interceptorConfig.getAroundTimeout();
                             handleInterceptorClass(clazz, aroundTimeoutMethodIdentifier, userAroundTimeoutsByInterceptorClass, false, false);
                         }
@@ -745,7 +765,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                     handleClassMethod(clazz, interceptorConfig.getPreDestroy(), userPreDestroy, true, true);
                     handleClassMethod(clazz, interceptorConfig.getAroundInvoke(), componentUserAroundInvoke, false, false);
 
-                    if (description.isTimerServiceApplicable()) {
+                    if (description.isTimerServiceRequired()) {
                         handleClassMethod(clazz, interceptorConfig.getAroundTimeout(), componentUserAroundTimeout, false, false);
                     }
 
@@ -766,7 +786,9 @@ public class ComponentDescription implements ResourceInjectionTarget {
                 }
             }.run();
 
-            final InterceptorFactory tcclInterceptor = new ImmediateInterceptorFactory(new TCCLInterceptor(module.getClassLoader()));
+            final ClassLoader classLoader = module.getClassLoader();
+            final InterceptorFactory tcclInterceptor = new ImmediateInterceptorFactory(new ContextClassLoaderInterceptor(classLoader));
+            final InterceptorFactory privilegedInterceptor = PrivilegedInterceptor.getFactory();
 
             // Apply post-construct
             if (!injectors.isEmpty()) {
@@ -780,6 +802,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
             }
             configuration.addPostConstructInterceptor(Interceptors.getTerminalInterceptorFactory(), InterceptorOrder.ComponentPostConstruct.TERMINAL_INTERCEPTOR);
             configuration.addPostConstructInterceptor(tcclInterceptor, InterceptorOrder.ComponentPostConstruct.TCCL_INTERCEPTOR);
+            configuration.addPostConstructInterceptor(privilegedInterceptor, InterceptorOrder.ComponentPostConstruct.PRIVILEGED_INTERCEPTOR);
 
             // Apply pre-destroy
             if (!uninjectors.isEmpty()) {
@@ -793,6 +816,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
             }
             configuration.addPreDestroyInterceptor(Interceptors.getTerminalInterceptorFactory(), InterceptorOrder.ComponentPreDestroy.TERMINAL_INTERCEPTOR);
             configuration.addPreDestroyInterceptor(tcclInterceptor, InterceptorOrder.ComponentPreDestroy.TCCL_INTERCEPTOR);
+            configuration.addPreDestroyInterceptor(privilegedInterceptor, InterceptorOrder.ComponentPreDestroy.PRIVILEGED_INTERCEPTOR);
 
             if (description.isPassivationApplicable()) {
                 if (!userPrePassivate.isEmpty()) {
@@ -800,12 +824,14 @@ public class ComponentDescription implements ResourceInjectionTarget {
                 }
                 configuration.addPrePassivateInterceptor(Interceptors.getTerminalInterceptorFactory(), InterceptorOrder.ComponentPassivation.TERMINAL_INTERCEPTOR);
                 configuration.addPrePassivateInterceptor(tcclInterceptor, InterceptorOrder.ComponentPassivation.TCCL_INTERCEPTOR);
+                configuration.addPrePassivateInterceptor(privilegedInterceptor, InterceptorOrder.ComponentPassivation.PRIVILEGED_INTERCEPTOR);
 
                 if (!userPostActivate.isEmpty()) {
                     configuration.addPostActivateInterceptor(weaved(userPostActivate), InterceptorOrder.ComponentPassivation.USER_INTERCEPTORS);
                 }
                 configuration.addPostActivateInterceptor(Interceptors.getTerminalInterceptorFactory(), InterceptorOrder.ComponentPassivation.TERMINAL_INTERCEPTOR);
                 configuration.addPostActivateInterceptor(tcclInterceptor, InterceptorOrder.ComponentPassivation.TCCL_INTERCEPTOR);
+                configuration.addPostActivateInterceptor(privilegedInterceptor, InterceptorOrder.ComponentPassivation.PRIVILEGED_INTERCEPTOR);
             }
 
             // @AroundInvoke interceptors
@@ -828,6 +854,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                     final List<InterceptorFactory> userComponentAroundInvokes = new ArrayList<InterceptorFactory>();
                     final List<InterceptorFactory> userComponentAroundTimeouts = new ArrayList<InterceptorFactory>();
                     // first add the default interceptors (if not excluded) to the deque
+                    final boolean requiresTimerChain = description.isTimerServiceRequired() && timeoutMethods.contains(identifier);
                     if (!description.isExcludeDefaultInterceptors() && !description.isExcludeDefaultInterceptors(identifier)) {
                         for (InterceptorDescription interceptorDescription : description.getDefaultInterceptors()) {
                             String interceptorClassName = interceptorDescription.getInterceptorClassName();
@@ -835,7 +862,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                             if (aroundInvokes != null) {
                                 userAroundInvokes.addAll(aroundInvokes);
                             }
-                            if (description.isTimerServiceApplicable()) {
+                            if (requiresTimerChain) {
                                 List<InterceptorFactory> aroundTimeouts = userAroundTimeoutsByInterceptorClass.get(interceptorClassName);
                                 if (aroundTimeouts != null) {
                                     userAroundTimeouts.addAll(aroundTimeouts);
@@ -852,7 +879,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                             if (aroundInvokes != null) {
                                 userAroundInvokes.addAll(aroundInvokes);
                             }
-                            if (description.isTimerServiceApplicable()) {
+                            if (requiresTimerChain) {
                                 List<InterceptorFactory> aroundTimeouts = userAroundTimeoutsByInterceptorClass.get(interceptorClassName);
                                 if (aroundTimeouts != null) {
                                     userAroundTimeouts.addAll(aroundTimeouts);
@@ -870,7 +897,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
                             if (aroundInvokes != null) {
                                 userAroundInvokes.addAll(aroundInvokes);
                             }
-                            if (description.isTimerServiceApplicable()) {
+                            if (requiresTimerChain) {
                                 List<InterceptorFactory> aroundTimeouts = userAroundTimeoutsByInterceptorClass.get(interceptorClassName);
                                 if (aroundTimeouts != null) {
                                     userAroundTimeouts.addAll(aroundTimeouts);
@@ -881,7 +908,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
 
                     // finally add the component level around invoke to the deque so that it's triggered last
                     userComponentAroundInvokes.addAll(componentUserAroundInvoke);
-                    if (componentUserAroundTimeout != null) {
+                    if (componentUserAroundTimeout != null && requiresTimerChain) {
                         userComponentAroundTimeouts.addAll(componentUserAroundTimeout);
                     }
                     configuration.addComponentInterceptor(method, new UserInterceptorFactory(weaved(userAroundInvokes), weaved(userAroundTimeouts)), InterceptorOrder.Component.USER_INTERCEPTORS);
@@ -947,7 +974,8 @@ public class ComponentDescription implements ResourceInjectionTarget {
          * <p/>
          * Note that this does not take superclasses into consideration, only injections on the current class
          *
-         * @param clazz             The class to perform injection for
+         * @param clazz             The class or superclass to perform injection for
+         * @param actualClass       The actual component or interceptor class
          * @param classDescription  The class description, may be null
          * @param moduleDescription The module description
          * @param description       The component description
@@ -959,7 +987,7 @@ public class ComponentDescription implements ResourceInjectionTarget {
          * @throws DeploymentUnitProcessingException
          *
          */
-        private void mergeInjectionsForClass(final Class<?> clazz, final EEModuleClassDescription classDescription, final EEModuleDescription moduleDescription, final ComponentDescription description, final ComponentConfiguration configuration, final DeploymentPhaseContext context, final Deque<InterceptorFactory> injectors, final Object instanceKey, final Deque<InterceptorFactory> uninjectors, boolean metadataComplete) throws DeploymentUnitProcessingException {
+        private void mergeInjectionsForClass(final Class<?> clazz, final Class<?> actualClass, final EEModuleClassDescription classDescription, final EEModuleDescription moduleDescription, final DeploymentReflectionIndex deploymentReflectionIndex, final ComponentDescription description, final ComponentConfiguration configuration, final DeploymentPhaseContext context, final Deque<InterceptorFactory> injectors, final Object instanceKey, final Deque<InterceptorFactory> uninjectors, boolean metadataComplete) throws DeploymentUnitProcessingException {
             final Map<InjectionTarget, ResourceInjectionConfiguration> mergedInjections = new HashMap<InjectionTarget, ResourceInjectionConfiguration>();
             if (classDescription != null && !metadataComplete) {
                 mergedInjections.putAll(classDescription.getInjectionConfigurations());
@@ -972,6 +1000,15 @@ public class ComponentDescription implements ResourceInjectionTarget {
                     SERVER_DEPLOYMENT_LOGGER.ignoringStaticInjectionTarget(injectionConfiguration.getTarget());
                     continue;
                 }
+                if(injectionConfiguration.getTarget() instanceof MethodInjectionTarget) {
+                    //we need to make sure that if this is a method injection it has not been overriden
+                    final MethodInjectionTarget mt = (MethodInjectionTarget)injectionConfiguration.getTarget();
+                    Method method = mt.getMethod(deploymentReflectionIndex, clazz);
+                    if(!isNotOverriden(clazz, method, actualClass, deploymentReflectionIndex)) {
+                        continue;
+                    }
+                }
+
                 final Object valueContextKey = new Object();
                 final InjectedValue<ManagedReferenceFactory> managedReferenceFactoryValue = new InjectedValue<ManagedReferenceFactory>();
                 configuration.getStartDependencies().add(new InjectedConfigurator(injectionConfiguration, configuration, context, managedReferenceFactoryValue));

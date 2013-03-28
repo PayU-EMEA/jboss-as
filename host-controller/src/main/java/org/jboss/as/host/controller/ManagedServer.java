@@ -22,6 +22,7 @@
 
 package org.jboss.as.host.controller;
 
+import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -30,9 +31,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.jboss.as.controller.CurrentOperationIdHolder;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.PathElement;
-import org.jboss.as.controller.ProxyController;
 import org.jboss.as.controller.ProxyOperationAddressTranslator;
 import org.jboss.as.controller.TransformingProxyController;
 import org.jboss.as.controller.client.helpers.domain.ServerStatus;
@@ -90,17 +91,17 @@ class ManagedServer {
     /**
      * Prefix applied to a server's name to create it's process name.
      */
-    public static String SERVER_PROCESS_NAME_PREFIX = "Server:";
+    private static final String SERVER_PROCESS_NAME_PREFIX = "Server:";
 
-    public static String getServerProcessName(String serverName) {
+    static String getServerProcessName(String serverName) {
         return SERVER_PROCESS_NAME_PREFIX + serverName;
     }
 
-    public static boolean isServerProcess(String serverProcessName) {
+    static boolean isServerProcess(String serverProcessName) {
         return serverProcessName.startsWith(SERVER_PROCESS_NAME_PREFIX);
     }
 
-    public static String getServerName(String serverProcessName) {
+    static String getServerName(String serverProcessName) {
         return serverProcessName.substring(SERVER_PROCESS_NAME_PREFIX.length());
     }
 
@@ -114,13 +115,16 @@ class ManagedServer {
     private final ManagedServer.ManagedServerBootConfiguration bootConfiguration;
 
     private final ManagedServerProxy protocolClient;
-    private final TransformationTarget transformationTarget;
     private final TransformingProxyController proxyController;
 
     private volatile boolean requiresReload;
 
     private volatile InternalState requiredState = InternalState.STOPPED;
     private volatile InternalState internalState = InternalState.STOPPED;
+
+    // Get the current operation id when the server is created
+    // This is only used when starting a server, reconnection might not be triggered using a mgmt operation
+    private final int operationID = CurrentOperationIdHolder.getCurrentOperationID();
 
     ManagedServer(final String hostControllerName, final String serverName, final byte[] authKey,
                   final ProcessControllerClient processControllerClient, final InetSocketAddress managementSocket,
@@ -137,7 +141,6 @@ class ManagedServer {
         this.processControllerClient = processControllerClient;
         this.managementSocket = managementSocket;
         this.bootConfiguration = bootConfiguration;
-        this.transformationTarget = transformationTarget;
 
         this.authKey = authKey;
 
@@ -243,6 +246,36 @@ class ManagedServer {
             ROOT_LOGGER.stoppingServer(serverName);
             // Transition, but don't wait for async notifications to complete
             transition(false);
+        }
+    }
+
+    protected synchronized void destroy() {
+        final InternalState required = this.requiredState;
+        if(required == InternalState.STOPPED) {
+            if(internalState != InternalState.STOPPED) {
+                try {
+                    processControllerClient.destroyProcess(serverProcessName);
+                } catch (IOException e) {
+                    ROOT_LOGGER.debugf(e, "failed to send destroy_process message to %s", serverName);
+                }
+            }
+        } else {
+            stop();
+        }
+    }
+
+    protected synchronized void kill() {
+        final InternalState required = this.requiredState;
+        if(required == InternalState.STOPPED) {
+            if(internalState != InternalState.STOPPED) {
+                try {
+                    processControllerClient.killProcess(serverProcessName);
+                } catch (IOException e) {
+                    ROOT_LOGGER.debugf(e, "failed to send kill_process message to %s", serverName);
+                }
+            }
+        } else {
+            stop();
         }
     }
 
@@ -579,7 +612,7 @@ class ManagedServer {
     /**
      * The managed server boot configuration.
      */
-    public interface ManagedServerBootConfiguration {
+    interface ManagedServerBootConfiguration {
         /**
          * Get the server launch environment.
          *
@@ -702,7 +735,7 @@ class ManagedServer {
             final boolean useSubsystemEndpoint = bootConfiguration.isManagementSubsystemEndpoint();
             final ModelNode endpointConfig = bootConfiguration.getSubsystemEndpointConfiguration();
             // Send std.in
-            final ServiceActivator hostControllerCommActivator = DomainServerCommunicationServices.create(endpointConfig, managementSocket, serverName, serverProcessName, authKey, useSubsystemEndpoint);
+            final ServiceActivator hostControllerCommActivator = DomainServerCommunicationServices.create(endpointConfig, managementSocket, serverName, serverProcessName, authKey, operationID, useSubsystemEndpoint);
             final ServerStartTask startTask = new ServerStartTask(hostControllerName, serverName, 0, Collections.<ServiceActivator>singletonList(hostControllerCommActivator), bootUpdates, launchProperties);
             final Marshaller marshaller = MARSHALLER_FACTORY.createMarshaller(CONFIG);
             final OutputStream os = processControllerClient.sendStdin(serverProcessName);

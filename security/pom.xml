@@ -49,6 +49,10 @@
                         <include>**/*TestCase.java</include>
                     </includes>
                     <enableAssertions>false</enableAssertions>
+                    <systemPropertyVariables>
+                        <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+	                      <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+		                </systemPropertyVariables>
                 </configuration>
             </plugin>
 
@@ -61,15 +65,6 @@
                             <mainClass>org.jboss.as.security.vault.VaultTool</mainClass>
                         </manifest>
                     </archive>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
                 </configuration>
             </plugin>
         </plugins>
@@ -91,7 +86,12 @@
 	        <groupId>org.jboss.as</groupId>
 	        <artifactId>jboss-as-domain-management</artifactId>
         </dependency>
-        
+
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-security-util</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-server</artifactId>
@@ -163,6 +163,7 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-subsystem-test</artifactId>
+						<type>pom</type>
             <scope>test</scope>
         </dependency>
     </dependencies>

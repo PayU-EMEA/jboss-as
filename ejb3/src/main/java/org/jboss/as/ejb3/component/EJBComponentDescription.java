@@ -35,7 +35,6 @@ import org.jboss.as.ee.component.DependencyConfigurator;
 import org.jboss.as.ee.component.InterceptorDescription;
 import org.jboss.as.ee.component.NamespaceConfigurator;
 import org.jboss.as.ee.component.NamespaceViewConfigurator;
-import org.jboss.as.ee.component.TCCLInterceptor;
 import org.jboss.as.ee.component.ViewConfiguration;
 import org.jboss.as.ee.component.ViewConfigurator;
 import org.jboss.as.ee.component.ViewDescription;
@@ -49,6 +48,7 @@ import org.jboss.as.ejb3.component.interceptors.EjbExceptionTransformingIntercep
 import org.jboss.as.ejb3.component.interceptors.LoggingInterceptor;
 import org.jboss.as.ejb3.component.interceptors.ShutDownInterceptorFactory;
 import org.jboss.as.ejb3.component.invocationmetrics.ExecutionTimeInterceptor;
+import org.jboss.as.ejb3.component.invocationmetrics.WaitTimeInterceptor;
 import org.jboss.as.ejb3.deployment.ApplicableMethodInformation;
 import org.jboss.as.ejb3.deployment.ApplicationExceptions;
 import org.jboss.as.ejb3.deployment.EjbDeploymentAttachmentKeys;
@@ -67,9 +67,11 @@ import org.jboss.as.server.deployment.DeploymentPhaseContext;
 import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
 import org.jboss.as.server.deployment.SetupAction;
+import org.jboss.invocation.ContextClassLoaderInterceptor;
 import org.jboss.invocation.ImmediateInterceptorFactory;
 import org.jboss.invocation.Interceptor;
 import org.jboss.invocation.InterceptorContext;
+import org.jboss.invocation.PrivilegedInterceptor;
 import org.jboss.invocation.proxy.MethodIdentifier;
 import org.jboss.metadata.ejb.spec.EnterpriseBeanMetaData;
 import org.jboss.metadata.javaee.spec.SecurityRolesMetaData;
@@ -183,7 +185,7 @@ public abstract class EJBComponentDescription extends ComponentDescription {
     /**
      * TODO: this should not be part of the description
      */
-    private TimerService timerService = NonFunctionalTimerService.INSTANCE;
+    private TimerService timerService = NonFunctionalTimerService.DISABLED;
 
     /**
      * If true this component is accessible via CORBA
@@ -294,17 +296,19 @@ public abstract class EJBComponentDescription extends ComponentDescription {
                 }
                 final List<SetupAction> ejbSetupActions = context.getDeploymentUnit().getAttachmentList(Attachments.OTHER_EE_SETUP_ACTIONS);
 
-                if (description.isTimerServiceApplicable()) {
+                if (description.isTimerServiceRequired()) {
 
                     if (!ejbSetupActions.isEmpty()) {
                         configuration.addTimeoutViewInterceptor(AdditionalSetupInterceptor.factory(ejbSetupActions), InterceptorOrder.View.EE_SETUP);
                     }
                     configuration.addTimeoutViewInterceptor(shutDownInterceptorFactory, InterceptorOrder.View.SHUTDOWN_INTERCEPTOR);
-                    configuration.addTimeoutViewInterceptor(new ImmediateInterceptorFactory(new TCCLInterceptor(configuration.getModuleClassLoader())), InterceptorOrder.View.TCCL_INTERCEPTOR);
+                    final ClassLoader classLoader = configuration.getModuleClassLoader();
+                    configuration.addTimeoutViewInterceptor(PrivilegedInterceptor.getFactory(), InterceptorOrder.View.PRIVILEGED_INTERCEPTOR);
+                    configuration.addTimeoutViewInterceptor(new ImmediateInterceptorFactory(new ContextClassLoaderInterceptor(classLoader)), InterceptorOrder.View.TCCL_INTERCEPTOR);
                     configuration.addTimeoutViewInterceptor(configuration.getNamespaceContextInterceptorFactory(), InterceptorOrder.View.JNDI_NAMESPACE_INTERCEPTOR);
                     configuration.addTimeoutViewInterceptor(CurrentInvocationContextInterceptor.FACTORY, InterceptorOrder.View.INVOCATION_CONTEXT_INTERCEPTOR);
                     if (isSecurityEnabled()) {
-                        configuration.addTimeoutViewInterceptor(new SecurityContextInterceptorFactory(), InterceptorOrder.View.SECURITY_CONTEXT);
+                        configuration.addTimeoutViewInterceptor(new SecurityContextInterceptorFactory(true), InterceptorOrder.View.SECURITY_CONTEXT);
                     }
                     for (final Method method : configuration.getClassIndex().getClassMethods()) {
                         configuration.addTimeoutViewInterceptor(method, new ImmediateInterceptorFactory(new ComponentDispatcherInterceptor(method)), InterceptorOrder.View.COMPONENT_DISPATCHER);
@@ -386,7 +390,9 @@ public abstract class EJBComponentDescription extends ComponentDescription {
             @Override
             public void configure(DeploymentPhaseContext context, ComponentConfiguration componentConfiguration, ViewDescription description, ViewConfiguration viewConfiguration) throws DeploymentUnitProcessingException {
                 viewConfiguration.addViewInterceptor(LoggingInterceptor.FACTORY, InterceptorOrder.View.EJB_EXCEPTION_LOGGING_INTERCEPTOR);
-                viewConfiguration.addViewInterceptor(new ImmediateInterceptorFactory(new TCCLInterceptor(componentConfiguration.getModuleClassLoader())), InterceptorOrder.View.TCCL_INTERCEPTOR);
+                final ClassLoader classLoader = componentConfiguration.getModuleClassLoader();
+                viewConfiguration.addViewInterceptor(PrivilegedInterceptor.getFactory(), InterceptorOrder.View.PRIVILEGED_INTERCEPTOR);
+                viewConfiguration.addViewInterceptor(new ImmediateInterceptorFactory(new ContextClassLoaderInterceptor(classLoader)), InterceptorOrder.View.TCCL_INTERCEPTOR);
 
                 //If this is the EJB 2.x local or home view add the exception transformer interceptor
                 if (view.getMethodIntf() == MethodIntf.LOCAL && EJBLocalObject.class.isAssignableFrom(viewConfiguration.getViewClass())) {
@@ -399,7 +405,7 @@ public abstract class EJBComponentDescription extends ComponentDescription {
                 if (!ejbSetupActions.isEmpty()) {
                     viewConfiguration.addViewInterceptor(AdditionalSetupInterceptor.factory(ejbSetupActions), InterceptorOrder.View.EE_SETUP);
                 }
-
+                viewConfiguration.addViewInterceptor(WaitTimeInterceptor.FACTORY, InterceptorOrder.View.EJB_WAIT_TIME_INTERCEPTOR);
                 viewConfiguration.addViewInterceptor(shutDownInterceptorFactory, InterceptorOrder.View.SHUTDOWN_INTERCEPTOR);
             }
         });
@@ -904,6 +910,16 @@ public abstract class EJBComponentDescription extends ComponentDescription {
         this.methodLevelContainerInterceptors.put(methodIdentifier, containerInterceptors);
     }
 
+    public Set<MethodIdentifier> getTimerMethods() {
+        final Set<MethodIdentifier> methods = new HashSet<MethodIdentifier>();
+        if(timeoutMethod != null) {
+            methods.add(MethodIdentifier.getIdentifierForMethod(timeoutMethod));
+        }
+        for(Method method : scheduleMethods.keySet()) {
+            methods.add(MethodIdentifier.getIdentifierForMethod(method));
+        }
+        return methods;
+    }
 
     /**
      * Returns a combined map of class and method level container interceptors

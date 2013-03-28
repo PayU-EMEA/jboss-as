@@ -24,20 +24,12 @@ package org.jboss.as.webservices.util;
 import static org.jboss.as.webservices.WSMessages.MESSAGES;
 
 import java.io.File;
-import java.lang.reflect.InvocationTargetException;
-
-import javax.naming.NamingException;
 import javax.servlet.Servlet;
 
-import org.apache.catalina.Container;
-import org.apache.catalina.Host;
-import org.apache.catalina.LifecycleException;
-import org.apache.catalina.Loader;
-import org.apache.catalina.Wrapper;
-import org.apache.catalina.core.StandardContext;
-import org.apache.catalina.startup.ContextConfig;
-import org.apache.tomcat.InstanceManager;
-import org.jboss.as.web.deployment.WebCtxLoader;
+import org.jboss.as.web.host.ServletBuilder;
+import org.jboss.as.web.host.WebDeploymentController;
+import org.jboss.as.web.host.WebDeploymentBuilder;
+import org.jboss.as.web.host.WebHost;
 import org.jboss.msc.service.StartException;
 
 /**
@@ -49,16 +41,16 @@ import org.jboss.msc.service.StartException;
  */
 public class WebAppController {
 
-    private Host host;
+    private WebHost host;
     private String contextRoot;
     private String urlPattern;
     private String serverTempDir;
     private String servletClass;
     private ClassLoader classloader;
-    private volatile StandardContext ctx;
+    private volatile WebDeploymentController ctx;
     private int count = 0;
 
-    public WebAppController(Host host, String servletClass, ClassLoader classloader, String contextRoot, String urlPattern,
+    public WebAppController(WebHost host, String servletClass, ClassLoader classloader, String contextRoot, String urlPattern,
             String serverTempDir) {
         this.host = host;
         this.contextRoot = contextRoot;
@@ -94,89 +86,52 @@ public class WebAppController {
         return count;
     }
 
-    private StandardContext startWebApp(Host host) throws Exception {
-        StandardContext context = new StandardContext();
+    private WebDeploymentController startWebApp(WebHost host) throws Exception {
+        WebDeploymentBuilder builder = new WebDeploymentBuilder();
+        WebDeploymentController deployment;
         try {
-            context.setPath(contextRoot);
-            context.addLifecycleListener(new ContextConfig());
+            builder.setContextRoot(contextRoot);
             File docBase = new File(serverTempDir, contextRoot);
             if (!docBase.exists()) {
                 docBase.mkdirs();
             }
-            context.setDocBase(docBase.getPath());
-
-            final Loader loader = new WebCtxLoader(classloader);
-            loader.setContainer(host);
-            context.setLoader(loader);
-            context.setInstanceManager(new LocalInstanceManager());
+            builder.setDocumentRoot(docBase);
+            builder.setClassLoader(classloader);
 
             final int j = servletClass.indexOf(".");
             final String servletName = j < 0 ? servletClass : servletClass.substring(j + 1);
             final Class<?> clazz = classloader.loadClass(servletClass);
-            final Wrapper wsfsWrapper = context.createWrapper();
-            wsfsWrapper.setName(servletName);
-            wsfsWrapper.setServlet((Servlet) clazz.newInstance());
-            wsfsWrapper.setServletClass(servletClass);
-            context.addChild(wsfsWrapper);
-            context.addServletMapping(urlPattern, servletName);
+            ServletBuilder servlet = new ServletBuilder();
+            servlet.setServletName(servletName);
+            servlet.setServlet((Servlet) clazz.newInstance());
+            servlet.setServletClass(clazz);
+            servlet.addUrlMapping(urlPattern);
+            builder.addServlet(servlet);
 
-            host.addChild(context);
-            context.create();
+            deployment = host.addWebDeployment(builder);
+            deployment.create();
+
         } catch (Exception e) {
             throw MESSAGES.createContextPhaseFailed(e);
         }
         try {
-            context.start();
-        } catch (LifecycleException e) {
+            deployment.start();
+        } catch (Exception e) {
             throw MESSAGES.startContextPhaseFailed(e);
         }
-        return context;
+        return deployment;
     }
 
-    private void stopWebApp(StandardContext context) throws Exception {
+    private void stopWebApp(WebDeploymentController context) throws Exception {
         try {
-            Container container = context.getParent();
-            container.removeChild(context);
             context.stop();
-        } catch (LifecycleException e) {
+        } catch (Exception e) {
             throw MESSAGES.stopContextPhaseFailed(e);
         }
         try {
             context.destroy();
         } catch (Exception e) {
             throw MESSAGES.destroyContextPhaseFailed(e);
-        }
-    }
-
-    private static class LocalInstanceManager implements InstanceManager {
-        LocalInstanceManager() {
-        }
-
-        @Override
-        public Object newInstance(String className) throws IllegalAccessException, InvocationTargetException, NamingException,
-                InstantiationException, ClassNotFoundException {
-            return Class.forName(className).newInstance();
-        }
-
-        @Override
-        public Object newInstance(String fqcn, ClassLoader classLoader) throws IllegalAccessException,
-                InvocationTargetException, NamingException, InstantiationException, ClassNotFoundException {
-            return Class.forName(fqcn, false, classLoader).newInstance();
-        }
-
-        @Override
-        public Object newInstance(Class<?> c) throws IllegalAccessException, InvocationTargetException, NamingException,
-                InstantiationException {
-            return c.newInstance();
-        }
-
-        @Override
-        public void newInstance(Object o) throws IllegalAccessException, InvocationTargetException, NamingException {
-            throw new IllegalStateException();
-        }
-
-        @Override
-        public void destroyInstance(Object o) throws IllegalAccessException, InvocationTargetException {
         }
     }
 }

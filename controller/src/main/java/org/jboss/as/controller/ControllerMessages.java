@@ -1313,9 +1313,8 @@ public interface ControllerMessages {
      *
      * @deprecated use {@link #noSuchResourceType(PathAddress)} or {@link #noHandlerForOperation(String, PathAddress)}
      */
-    @Deprecated
-    @Message(id = 14739, value = "No handler for %s at address %s")
-    String noHandler(String stepOpName, PathAddress address);
+//    @Message(id = 14739, value = "No handler for %s at address %s")
+//    String noHandler(String stepOpName, PathAddress address);
 
     /**
      * A message indicating that no interface criteria was provided.
@@ -2620,7 +2619,24 @@ public interface ControllerMessages {
     @Message(id = 14896, value = "Resource %s is rejected on the target host, and will need to be ignored on the host")
     String rejectedResourceResourceTransformation(PathAddress address);
 
-
     @Message(id = 14897, value = "Resource %s is rejected on the target host and will need to be ignored on the host: %s")
     String rejectResourceOperationTransformation(PathAddress address, ModelNode operation);
+
+    /**
+     * Creates an exception indicating that {@code discoveryOptionsName} must be declared
+     * or the {@code hostName} and {@code portName} need to be provided.
+     *
+     * @param discoveryOptionsName the discovery-options element name.
+     * @param hostName the host attribute name.
+     * @param portName the port attribute name.
+     * @param location the location of the error.
+     *
+     * @return a {@link XMLStreamException} for the error.
+     */
+    @Message(id = 14898, value = "%s must be declared or the %s and the %s need to be provided.")
+    XMLStreamException discoveryOptionsMustBeDeclared(String discoveryOptionsName, String hostName, String portName, @Param Location location);
+
+    @Message(id = 14899, value = "read only context")
+    IllegalStateException readOnlyContext();
+
 }

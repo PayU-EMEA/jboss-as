@@ -23,6 +23,7 @@
  */
 package org.jboss.as.security;
 
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.STEPS;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUBSYSTEM;
 
 import java.io.IOException;
@@ -37,6 +38,7 @@ import org.jboss.as.controller.RunningMode;
 import org.jboss.as.controller.operations.common.Util;
 import org.jboss.as.model.test.FailedOperationTransformationConfig;
 import org.jboss.as.model.test.FailedOperationTransformationConfig.RejectExpressionsConfig;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.as.subsystem.test.AbstractSubsystemBaseTest;
 import org.jboss.as.subsystem.test.AdditionalInitialization;
@@ -103,37 +105,76 @@ public class SecurityDomainModelv12UnitTestCase extends AbstractSubsystemBaseTes
 
     @Test
     public void testTransformers712() throws Exception {
-        testResourceTransformers_1_1_0("7.1.2.Final");
+        testResourceTransformers_1_1_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testTransformers713() throws Exception {
-        testResourceTransformers_1_1_0("7.1.3.Final");
+        testResourceTransformers_1_1_0(ModelTestControllerVersion.V7_1_3_FINAL);
     }
 
 
     @Test
     public void testRejectedTransformers712() throws Exception {
-        testOperationTransformers_1_1_0("7.1.2.Final");
+        testOperationTransformers_1_1_0(ModelTestControllerVersion.V7_1_2_FINAL);
     }
 
     @Test
     public void testRejectedTransformers713() throws Exception {
-        testOperationTransformers_1_1_0("7.1.3.Final");
+        testOperationTransformers_1_1_0(ModelTestControllerVersion.V7_1_3_FINAL);
+    }
+
+    @Test
+    public void testTransformers121To120() throws Exception {
+        ModelVersion modelVersion = ModelVersion.create(1, 2, 0);
+        KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
+
+
+        //which is why we need to include the jboss-as-controller artifact.
+        builder.createLegacyKernelServicesBuilder(null, ModelTestControllerVersion.MASTER, modelVersion)
+                .addMavenResourceURL("org.jboss.as:jboss-as-security:" +"7.2.0.Final")
+                .dontPersistXml();
+
+
+        KernelServices mainServices = builder.build();
+        Assert.assertTrue(mainServices.isSuccessfulBoot());
+        Assert.assertTrue(mainServices.getLegacyServices(modelVersion).isSuccessfulBoot());
+        ModelTestUtils.checkFailedTransformedBootOperations(
+                mainServices,
+                modelVersion,
+                builder.parseXml(readResource("transformers.xml")),
+                new FailedOperationTransformationConfig()
+        );
+
+        ModelNode composite = Util.createEmptyOperation("composite", null);
+        ModelNode steps = composite.get(STEPS);
+
+        PathAddress secDomAddr = getSecurityDomainAddress("modules");
+        steps.add(Util.createEmptyOperation("add", secDomAddr));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.AUDIT, Constants.CLASSIC)), Constants.PROVIDER_MODULES));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.AUTHENTICATION, Constants.CLASSIC)), Constants.LOGIN_MODULES));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.AUTHENTICATION, Constants.JASPI)), Constants.AUTH_MODULES));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.AUTHORIZATION, Constants.CLASSIC)), Constants.POLICY_MODULES));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.IDENTITY_TRUST, Constants.CLASSIC)), Constants.TRUST_MODULES));
+        steps.add(getSecurityDomainComponentAdd(secDomAddr.append(PathElement.pathElement(Constants.MAPPING, Constants.CLASSIC)), Constants.MAPPING_MODULES));
+
+        ModelTestUtils.checkOutcome(mainServices.executeOperation(composite));
+        ModelTestUtils.checkOutcome(mainServices.executeOperation(modelVersion, mainServices.transformOperation(modelVersion, composite)));
+
+        Assert.assertEquals(mainServices.readWholeModel(false), mainServices.getLegacyServices(modelVersion).readWholeModel(false));
     }
 
 
-    private void testOperationTransformers_1_1_0(String version) throws Exception {
+    private void testOperationTransformers_1_1_0(ModelTestControllerVersion controllerVersion) throws Exception {
         ModelVersion modelVersion = ModelVersion.create(1, 1, 0);
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT);
 
 
         //which is why we need to include the jboss-as-controller artifact.
-        builder.createLegacyKernelServicesBuilder(null, modelVersion)
-                .addMavenResourceURL("org.jboss.as:jboss-as-security:" + version)
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:" + version)
-                .addParentFirstClassPattern("org.jboss.as.controller.*")
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, modelVersion)
+                .addMavenResourceURL("org.jboss.as:jboss-as-security:" + controllerVersion.getMavenGavVersion())
                 .dontPersistXml();
+
 
         KernelServices mainServices = builder.build();
         Assert.assertTrue(mainServices.isSuccessfulBoot());
@@ -147,16 +188,14 @@ public class SecurityDomainModelv12UnitTestCase extends AbstractSubsystemBaseTes
 
     }
 
-    private void testResourceTransformers_1_1_0(String version) throws Exception {
+    private void testResourceTransformers_1_1_0(ModelTestControllerVersion controllerVersion) throws Exception {
         ModelVersion modelVersion = ModelVersion.create(1, 1, 0);
         KernelServicesBuilder builder = createKernelServicesBuilder(AdditionalInitialization.MANAGEMENT)
                 .setSubsystemXmlResource("transformers-noexpressions.xml");
 
         //which is why we need to include the jboss-as-controller artifact.
-        builder.createLegacyKernelServicesBuilder(null, modelVersion)
-                .addMavenResourceURL("org.jboss.as:jboss-as-security:" + version)
-                .addMavenResourceURL("org.jboss.as:jboss-as-controller:" + version)
-                .addParentFirstClassPattern("org.jboss.as.controller.*")
+        builder.createLegacyKernelServicesBuilder(null, controllerVersion, modelVersion)
+                .addMavenResourceURL("org.jboss.as:jboss-as-security:" + controllerVersion.getMavenGavVersion())
                 .dontPersistXml();
 
         KernelServices mainServices = builder.build();
@@ -275,6 +314,19 @@ public class SecurityDomainModelv12UnitTestCase extends AbstractSubsystemBaseTes
 
     private PathAddress getSecurityDomainAddress(String securityDomainName) {
         return PathAddress.pathAddress(PathElement.pathElement(SUBSYSTEM, getMainSubsystemName()), PathElement.pathElement(Constants.SECURITY_DOMAIN, securityDomainName));
+    }
+
+    private ModelNode getSecurityDomainComponentAdd(PathAddress componentAddr, String modulesListAttribute) {
+        ModelNode add = Util.createEmptyOperation("add", componentAddr);
+        ModelNode modules = new ModelNode();
+        modules.get(Constants.CODE).set("new-added-by-test");
+        modules.get(Constants.FLAG).set("required");
+        if (modulesListAttribute.equals(Constants.MAPPING_MODULES)) {
+            modules.get(Constants.TYPE).set("role");
+        }
+        modules.get("module-options", "password-stacking").set("useFirstPass");
+        modules.get(modulesListAttribute).add(modules);
+        return add;
     }
 
     private FailedOperationTransformationConfig getConfig() {

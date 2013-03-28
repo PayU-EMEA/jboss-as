@@ -35,9 +35,13 @@
 
     <dependencies>
         <module name="javax.api"/>
+        <module name="org.apache.xalan" services="import"/>
+        <module name="org.apache.xerces" services="import"/>
+        <module name="org.codehaus.woodstox" services="import"/>        
         <module name="org.jboss.staxmapper"/>
         <module name="org.jboss.vfs"/>
         <module name="org.jboss.as.controller"/>
+        <module name="org.jboss.common-core"/>
         <module name="org.jboss.as.deployment-repository"/>
         <module name="org.jboss.as.domain-management"/>
         <module name="org.jboss.as.domain-http-interface"/>
@@ -47,6 +51,7 @@
         <module name="org.jboss.as.process-controller"/>
         <module name="org.jboss.as.protocol"/>
         <module name="org.jboss.as.remoting"/>
+        <module name="org.jboss.as.security-util"/>
         <module name="org.jboss.as.security" optional="true" services="import"/>
         <module name="org.jboss.as.server"/>
         <module name="org.jboss.as.threads"/>

@@ -59,7 +59,6 @@ import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SER
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOCKET_BINDING;
 import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SOCKET_BINDING_GROUP;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
 import java.util.ArrayList;
@@ -74,8 +73,6 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 
-import junit.framework.Assert;
-
 import org.jboss.as.controller.ModelVersion;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.PathAddress;
@@ -86,19 +83,22 @@ import org.jboss.as.controller.RunningModeControl;
 import org.jboss.as.controller.extension.ExtensionRegistry;
 import org.jboss.as.core.model.bridge.impl.LegacyControllerKernelServicesProxy;
 import org.jboss.as.core.model.bridge.local.ScopedKernelServicesBootstrap;
-import org.jboss.as.core.model.test.LegacyKernelServicesInitializer.TestControllerVersion;
 import org.jboss.as.host.controller.HostRunningModeControl;
 import org.jboss.as.host.controller.RestartMode;
 import org.jboss.as.model.test.ChildFirstClassLoaderBuilder;
 import org.jboss.as.model.test.ModelFixer;
 import org.jboss.as.model.test.ModelTestBootOperationsBuilder;
+import org.jboss.as.model.test.ModelTestControllerVersion;
 import org.jboss.as.model.test.ModelTestModelDescriptionValidator;
 import org.jboss.as.model.test.ModelTestModelDescriptionValidator.ValidationConfiguration;
 import org.jboss.as.model.test.ModelTestModelDescriptionValidator.ValidationFailure;
+import org.jboss.as.model.test.ModelTestOperationValidatorFilter;
+import org.jboss.as.model.test.ModelTestOperationValidatorFilter.Action;
 import org.jboss.as.model.test.ModelTestUtils;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.Property;
 import org.jboss.staxmapper.XMLMapper;
+import org.junit.Assert;
 
 
 
@@ -389,6 +389,7 @@ public class CoreModelTestDelegate {
         private final TestParser testParser;
         private ProcessType processType;
         private ModelInitializer modelInitializer;
+        private ModelWriteSanitizer modelWriteSanitizer;
         private boolean validateDescription;
         private boolean validateOperations = true;
         private XMLMapper xmlMapper = XMLMapper.Factory.create();
@@ -448,6 +449,7 @@ public class CoreModelTestDelegate {
         public KernelServicesBuilder setModelInitializer(ModelInitializer modelInitializer, ModelWriteSanitizer modelWriteSanitizer) {
             bootOperationBuilder.validateNotAlreadyBuilt();
             this.modelInitializer = modelInitializer;
+            this.modelWriteSanitizer = modelWriteSanitizer;
             testParser.setModelWriteSanitizer(modelWriteSanitizer);
             return this;
         }
@@ -462,7 +464,7 @@ public class CoreModelTestDelegate {
         public KernelServices build() throws Exception {
             bootOperationBuilder.validateNotAlreadyBuilt();
             List<ModelNode> bootOperations = bootOperationBuilder.build();
-            AbstractKernelServicesImpl kernelServices = AbstractKernelServicesImpl.create(processType, runningModeControl, validateOperations, bootOperations, testParser, null, type, modelInitializer, extensionRegistry, contentRepositoryContents);
+            AbstractKernelServicesImpl kernelServices = AbstractKernelServicesImpl.create(processType, runningModeControl, ModelTestOperationValidatorFilter.createValidateAll(), bootOperations, testParser, null, type, modelInitializer, extensionRegistry, contentRepositoryContents);
             CoreModelTestDelegate.this.kernelServices.add(kernelServices);
 
             if (validateDescription) {
@@ -490,7 +492,7 @@ public class CoreModelTestDelegate {
                     }
                 }
 
-                LegacyControllerKernelServicesProxy legacyServices = legacyInitializer.install(kernelServices, transformedBootOperations);
+                LegacyControllerKernelServicesProxy legacyServices = legacyInitializer.install(kernelServices, modelInitializer, modelWriteSanitizer, contentRepositoryContents, transformedBootOperations);
                 kernelServices.addLegacyKernelService(entry.getKey(), legacyServices);
             }
 
@@ -506,7 +508,7 @@ public class CoreModelTestDelegate {
         }
 
         @Override
-        public LegacyKernelServicesInitializer createLegacyKernelServicesBuilder(ModelVersion modelVersion, TestControllerVersion testControllerVersion) {
+        public LegacyKernelServicesInitializer createLegacyKernelServicesBuilder(ModelVersion modelVersion, ModelTestControllerVersion testControllerVersion) {
             if (type != TestModelType.DOMAIN) {
                 throw new IllegalStateException("Can only create legacy kernel services for DOMAIN.");
             }
@@ -527,42 +529,41 @@ public class CoreModelTestDelegate {
         private final ChildFirstClassLoaderBuilder classLoaderBuilder = new ChildFirstClassLoaderBuilder();
         private final ModelVersion modelVersion;
         private final List<LegacyModelInitializerEntry> modelInitializerEntries = new ArrayList<LegacyModelInitializerEntry>();
-        private final TestControllerVersion testControllerVersion;
-        private boolean validateOperations = true;
+        private final ModelTestControllerVersion testControllerVersion;
         private boolean dontUseBootOperations = false;
+        private boolean skipReverseCheck;
+        private ModelFixer reverseCheckMainModelFixer;
+        private ModelFixer reverseCheckLegacyModelFixer;
+        private ModelTestOperationValidatorFilter.Builder operationValidationExcludeFilterBuilder;
 
-        public LegacyKernelServicesInitializerImpl(ModelVersion modelVersion, TestControllerVersion version) {
+        LegacyKernelServicesInitializerImpl(ModelVersion modelVersion, ModelTestControllerVersion version) {
             this.modelVersion = modelVersion;
             this.testControllerVersion = version;
         }
 
-        private LegacyControllerKernelServicesProxy install(AbstractKernelServicesImpl mainServices, List<ModelNode> bootOperations) throws Exception {
+        private LegacyControllerKernelServicesProxy install(AbstractKernelServicesImpl mainServices, ModelInitializer modelInitializer, ModelWriteSanitizer modelWriteSanitizer, List<String> contentRepositoryContents, List<ModelNode> bootOperations) throws Exception {
             if (testControllerVersion == null) {
                 throw new IllegalStateException();
             }
 
+            if (!skipReverseCheck) {
+                bootCurrentVersionWithLegacyBootOperations(bootOperations, modelInitializer, modelWriteSanitizer, contentRepositoryContents, mainServices);
+            }
+
             classLoaderBuilder.addParentFirstClassPattern("org.jboss.as.core.model.bridge.shared.*");
 
-            File file = new File("target", "cached-classloader" + modelVersion + "_" + testControllerVersion);
-            boolean cached = file.exists();
-            ClassLoader legacyCl;
-            if (cached) {
-                classLoaderBuilder.createFromFile(file);
-                legacyCl = classLoaderBuilder.build();
-            } else {
-                classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-core-model-test-framework:7.2.0.Alpha1-SNAPSHOT");
-                classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-model-test:7.2.0.Alpha1-SNAPSHOT");
+            classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-core-model-test-framework:" + ModelTestControllerVersion.CurrentVersion.VERSION);
+            classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-model-test:" + ModelTestControllerVersion.CurrentVersion.VERSION);
 
-                if (testControllerVersion != TestControllerVersion.MASTER) {
-                    classLoaderBuilder.addRecursiveMavenResourceURL(testControllerVersion.getLegacyControllerMavenGav());
-                    classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-core-model-test-controller-" + testControllerVersion.getTestControllerVersion() + ":" + VERSION);
-                }
-                legacyCl = classLoaderBuilder.build(file);
+            if (testControllerVersion != ModelTestControllerVersion.MASTER) {
+                classLoaderBuilder.addRecursiveMavenResourceURL("org.jboss.as:jboss-as-host-controller:" + testControllerVersion.getMavenGavVersion());
+                classLoaderBuilder.addMavenResourceURL("org.jboss.as:jboss-as-core-model-test-controller-" + testControllerVersion.getTestControllerVersion() + ":" + ModelTestControllerVersion.CurrentVersion.VERSION);
             }
+            ClassLoader legacyCl = classLoaderBuilder.build();
 
 
             ScopedKernelServicesBootstrap scopedBootstrap = new ScopedKernelServicesBootstrap(legacyCl);
-            LegacyControllerKernelServicesProxy legacyServices = scopedBootstrap.createKernelServices(bootOperations, validateOperations, modelVersion, modelInitializerEntries);
+            LegacyControllerKernelServicesProxy legacyServices = scopedBootstrap.createKernelServices(bootOperations, getOperationValidationFilter(), modelVersion, modelInitializerEntries);
 
             return legacyServices;
         }
@@ -574,9 +575,22 @@ public class CoreModelTestDelegate {
         }
 
         @Override
-        public LegacyKernelServicesInitializer setDontValidateOperations() {
-            validateOperations = false;
+        public LegacyKernelServicesInitializer addOperationValidationExclude(String name, PathAddress pathAddress) {
+            addOperationValidationConfig(name, pathAddress, Action.NOCHECK);
             return this;
+        }
+
+        @Override
+        public LegacyKernelServicesInitializer addOperationValidationResolve(String name, PathAddress pathAddress) {
+            addOperationValidationConfig(name, pathAddress, Action.RESOLVE);
+            return this;
+        }
+
+        private void addOperationValidationConfig(String name, PathAddress pathAddress, Action action) {
+            if (operationValidationExcludeFilterBuilder == null) {
+                operationValidationExcludeFilterBuilder = ModelTestOperationValidatorFilter.createBuilder();
+            }
+            operationValidationExcludeFilterBuilder.addOperation(pathAddress, name, action);
         }
 
         @Override
@@ -589,5 +603,53 @@ public class CoreModelTestDelegate {
             return dontUseBootOperations;
         }
 
+        @Override
+        public LegacyKernelServicesInitializer skipReverseControllerCheck() {
+            skipReverseCheck = true;
+            return this;
+        }
+
+        @Override
+        public LegacyKernelServicesInitializer configureReverseControllerCheck(ModelFixer mainModelFixer, ModelFixer legacyModelFixer) {
+            this.reverseCheckMainModelFixer = mainModelFixer;
+            this.reverseCheckLegacyModelFixer = legacyModelFixer;
+            return this;
+        }
+
+        private KernelServices bootCurrentVersionWithLegacyBootOperations(List<ModelNode> bootOperations, ModelInitializer modelInitializer, ModelWriteSanitizer modelWriteSanitizer, List<String> contentRepositoryHashes, KernelServices mainServices) throws Exception {
+            KernelServicesBuilder reverseServicesBuilder = createKernelServicesBuilder(TestModelType.DOMAIN)
+                .setBootOperations(bootOperations)
+                .setModelInitializer(modelInitializer, modelWriteSanitizer);
+            for (String hash : contentRepositoryHashes) {
+                reverseServicesBuilder.createContentRepositoryContent(hash);
+            }
+            KernelServices reverseServices = reverseServicesBuilder.build();
+            if (reverseServices.getBootError() != null) {
+                Throwable t = reverseServices.getBootError();
+                if (t instanceof Exception) {
+                    throw (Exception)t;
+                }
+                throw new Exception(t);
+            }
+            Assert.assertTrue(reverseServices.getBootError() == null ? "error" : reverseServices.getBootError().getMessage(), reverseServices.isSuccessfulBoot());
+
+            ModelNode mainModel = mainServices.readWholeModel();
+            if (reverseCheckMainModelFixer != null) {
+                mainModel = reverseCheckMainModelFixer.fixModel(mainModel);
+            }
+            ModelNode reverseModel = reverseServices.readWholeModel();
+            if (reverseCheckLegacyModelFixer != null) {
+                reverseModel = reverseCheckLegacyModelFixer.fixModel(reverseModel);
+            }
+            ModelTestUtils.compare(mainModel, reverseModel);
+            return reverseServices;
+        }
+
+        private ModelTestOperationValidatorFilter getOperationValidationFilter() {
+            if (operationValidationExcludeFilterBuilder != null) {
+                return operationValidationExcludeFilterBuilder.build();
+            }
+            return ModelTestOperationValidatorFilter.createValidateAll();
+        }
     }
 }

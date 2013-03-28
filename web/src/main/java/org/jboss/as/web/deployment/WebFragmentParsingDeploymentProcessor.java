@@ -35,7 +35,6 @@ import javax.xml.stream.XMLStreamReader;
 import org.jboss.as.ee.structure.DeploymentType;
 import org.jboss.as.ee.structure.DeploymentTypeMarker;
 import org.jboss.as.ee.structure.SpecDescriptorPropertyReplacement;
-import org.jboss.as.server.deployment.Attachments;
 import org.jboss.as.server.deployment.DeploymentPhaseContext;
 import org.jboss.as.server.deployment.DeploymentUnit;
 import org.jboss.as.server.deployment.DeploymentUnitProcessingException;
@@ -46,6 +45,7 @@ import org.jboss.metadata.parser.servlet.WebFragmentMetaDataParser;
 import org.jboss.metadata.parser.util.NoopXMLResolver;
 import org.jboss.metadata.web.spec.WebFragmentMetaData;
 import org.jboss.vfs.VirtualFile;
+import org.jboss.as.web.common.WarMetaData;
 
 import static org.jboss.as.web.WebMessages.MESSAGES;
 

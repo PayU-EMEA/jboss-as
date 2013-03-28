@@ -45,17 +45,12 @@
           <artifactId>maven-surefire-plugin</artifactId>
           <configuration>
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
+            <systemPropertyVariables>
+                <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+	              <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+		        </systemPropertyVariables>
           </configuration>
         </plugin>
-          <plugin>
-              <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-compiler-plugin</artifactId>
-              <configuration>
-                  <compilerArgument>
-                      -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                  </compilerArgument>
-              </configuration>
-          </plugin>
       </plugins>
     </build>
 
@@ -65,10 +60,15 @@
             <artifactId>jboss-msc</artifactId>
         </dependency>
 
-	    <dependency>
-	        <groupId>org.jboss.as</groupId>
-	        <artifactId>jboss-as-controller</artifactId>
-	    </dependency>
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-controller</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-security-util</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.hornetq</groupId>
@@ -163,6 +163,7 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-subsystem-test</artifactId>
+						<type>pom</type>
             <scope>test</scope>
         </dependency>
     </dependencies>

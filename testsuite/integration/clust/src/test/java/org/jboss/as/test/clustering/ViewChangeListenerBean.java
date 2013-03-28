@@ -38,11 +38,15 @@ import org.jboss.msc.service.ServiceName;
 import org.jboss.msc.service.ServiceRegistry;
 import org.jboss.msc.service.StartException;
 
+/**
+ * @author Paul Ferraro
+ */
 @Stateless
 @Remote(ViewChangeListener.class)
 @Listener(sync = false)
 public class ViewChangeListenerBean implements ViewChangeListener {
-    public static final long TIMEOUT = 15000;
+    // TODO lower this timeout; workarounds issue when AS process became stale and FD kicks in after 30 seconds
+    public static final long TIMEOUT = 35000;
 
     @Override
     public void establishView(String cluster, String... names) throws InterruptedException {
@@ -60,8 +64,7 @@ public class ViewChangeListenerBean implements ViewChangeListener {
         try {
             EmbeddedCacheManager manager = ServiceContainerHelper.getValue(controller, EmbeddedCacheManager.class);
             manager.addListener(this);
-            try
-            {
+            try {
                 long start = System.currentTimeMillis();
                 long now = start;
                 long timeout = start + TIMEOUT;

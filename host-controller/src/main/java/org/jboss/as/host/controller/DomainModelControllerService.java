@@ -90,6 +90,7 @@ import org.jboss.as.domain.controller.SlaveRegistrationException;
 import org.jboss.as.domain.controller.operations.coordination.PrepareStepHandler;
 import org.jboss.as.domain.controller.resources.DomainRootDefinition;
 import org.jboss.as.host.controller.RemoteDomainConnectionService.RemoteFileRepository;
+import org.jboss.as.host.controller.discovery.DiscoveryOption;
 import org.jboss.as.host.controller.ignored.IgnoredDomainResourceRegistry;
 import org.jboss.as.host.controller.mgmt.HostControllerRegistrationHandler;
 import org.jboss.as.host.controller.mgmt.MasterDomainControllerOperationHandlerService;
@@ -111,7 +112,7 @@ import org.jboss.as.repository.LocalFileRepository;
 import org.jboss.as.server.BootstrapListener;
 import org.jboss.as.server.RuntimeExpressionResolver;
 import org.jboss.as.server.controller.resources.VersionModelInitializer;
-import org.jboss.as.server.mgmt.HttpManagementService;
+import org.jboss.as.server.mgmt._UndertowHttpManagementService;
 import org.jboss.as.server.services.security.AbstractVaultReader;
 import org.jboss.dmr.ModelNode;
 import org.jboss.msc.service.Service;
@@ -404,6 +405,14 @@ public class DomainModelControllerService extends AbstractControllerService impl
 
             if (ok) {
 
+                // Now we know our discovery configuration.
+                List<DiscoveryOption> discoveryOptions = hostControllerInfo.getRemoteDomainControllerDiscoveryOptions();
+                if (hostControllerInfo.isMasterDomainController() && (discoveryOptions != null)) {
+                    // Install the discovery service
+                    DiscoveryService.install(serviceTarget, discoveryOptions, hostControllerInfo.getNativeManagementInterface(),
+                            hostControllerInfo.getNativeManagementPort(), hostControllerInfo.isMasterDomainController());
+                }
+
                 // Now we know our management interface configuration. Install the server inventory
                 Future<ServerInventory> inventoryFuture = ServerInventoryService.install(serviceTarget, this, runningModeControl, environment,
                         extensionRegistry, hostControllerInfo.getNativeManagementInterface(), hostControllerInfo.getNativeManagementPort());
@@ -411,7 +420,7 @@ public class DomainModelControllerService extends AbstractControllerService impl
                 if (!hostControllerInfo.isMasterDomainController() && !environment.isUseCachedDc()) {
                     serverInventory = getFuture(inventoryFuture);
 
-                    if (hostControllerInfo.getRemoteDomainControllerHost() != null) {
+                    if ((discoveryOptions != null) && !discoveryOptions.isEmpty()) {
                         Future<MasterDomainControllerClient> clientFuture = RemoteDomainConnectionService.install(serviceTarget,
                                 getValue(), extensionRegistry,
                                 hostControllerInfo,
@@ -470,6 +479,10 @@ public class DomainModelControllerService extends AbstractControllerService impl
                                         return internalExecute(operation, handler, control, attachments, step);
                                     }
 
+                                    @Override
+                                    public ModelNode joinActiveOperation(ModelNode operation, OperationMessageHandler handler, ModelController.OperationTransactionControl control, OperationAttachments attachments, OperationStepHandler step, int permit) {
+                                        return executeReadOnlyOperation(operation, handler, control, attachments, step, permit);
+                                    }
                                 }),
                                 DomainModelControllerService.SERVICE_NAME, ManagementRemotingServices.DOMAIN_CHANNEL, null, null);
                         serverInventory = getFuture(inventoryFuture);
@@ -484,6 +497,11 @@ public class DomainModelControllerService extends AbstractControllerService impl
                     public ModelNode execute(ModelNode operation, OperationMessageHandler handler, ModelController.OperationTransactionControl control, OperationAttachments attachments, OperationStepHandler step) {
                         return internalExecute(operation, handler, control, attachments, step);
                     }
+
+                    @Override
+                    public ModelNode joinActiveOperation(ModelNode operation, OperationMessageHandler handler, ModelController.OperationTransactionControl control, OperationAttachments attachments, OperationStepHandler step, int permit) {
+                        return executeReadOnlyOperation(operation, handler, control, attachments, step, permit);
+                    }
                 }, this, expressionResolver);
 
                 // demand native mgmt services
@@ -494,7 +512,7 @@ public class DomainModelControllerService extends AbstractControllerService impl
 
                 // demand http mgmt services
                 serviceTarget.addService(ServiceName.JBOSS.append("http-mgmt-startup"), Service.NULL)
-                        .addDependency(ServiceBuilder.DependencyType.OPTIONAL, HttpManagementService.SERVICE_NAME)
+                        .addDependency(ServiceBuilder.DependencyType.OPTIONAL, _UndertowHttpManagementService.SERVICE_NAME)
                         .setInitialMode(ServiceController.Mode.ACTIVE)
                         .install();
 
@@ -514,7 +532,8 @@ public class DomainModelControllerService extends AbstractControllerService impl
                 try {
                     finishBoot();
                 } finally {
-                    bootstrapListener.tick();
+                    // Trigger the started message
+                    bootstrapListener.printBootStatistics();
                 }
             } else {
                 // Die!
@@ -755,6 +774,16 @@ public class DomainModelControllerService extends AbstractControllerService impl
         @Override
         public void operationFailed(String processName, ProcessMessageHandler.OperationType type) {
             serverInventory.operationFailed(processName, type);
+        }
+
+        @Override
+        public void destroyServer(String serverName) {
+            serverInventory.destroyServer(serverName);
+        }
+
+        @Override
+        public void killServer(String serverName) {
+            serverInventory.killServer(serverName);
         }
     }
 

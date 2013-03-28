@@ -22,7 +22,13 @@
 
 package org.jboss.as.messaging;
 
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OP_ADDR;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.VALUE;
+import static org.jboss.as.messaging.CommonAttributes.CLUSTERED;
+import static org.jboss.as.messaging.HornetQActivationService.isHornetQServerActive;
 import static org.jboss.as.messaging.MessagingMessages.MESSAGES;
+
+import java.util.Set;
 
 import org.hornetq.api.core.management.HornetQServerControl;
 import org.hornetq.core.server.HornetQServer;
@@ -32,7 +38,6 @@ import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.OperationStepHandler;
 import org.jboss.as.controller.PathAddress;
-import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.registry.AttributeAccess;
 import org.jboss.as.controller.registry.ManagementResourceRegistration;
 import org.jboss.dmr.ModelNode;
@@ -56,21 +61,18 @@ public class HornetQServerControlWriteHandler extends AbstractWriteAttributeHand
     public void registerAttributes(final ManagementResourceRegistration registry, boolean registerRuntimeOnly) {
         for (AttributeDefinition attr : CommonAttributes.SIMPLE_ROOT_RESOURCE_ATTRIBUTES) {
             if (registerRuntimeOnly || !attr.getFlags().contains(AttributeAccess.Flag.STORAGE_RUNTIME)) {
-                registry.registerReadWriteAttribute(attr, null, this);
+                if (attr.getName().equals(CLUSTERED.getName())) {
+                    registry.registerReadWriteAttribute(CLUSTERED,
+                            ClusteredAttributeHandlers.READ_HANDLER,
+                            ClusteredAttributeHandlers.WRITE_HANDLER);
+                } else {
+                    registry.registerReadWriteAttribute(attr, null, this);
+                }
             }
         }
 
         // handle deprecate attributes
         registry.registerReadWriteAttribute(CommonAttributes.LIVE_CONNECTOR_REF, null, new DeprecatedAttributeWriteHandler(CommonAttributes.LIVE_CONNECTOR_REF.getName()));
-        // clustered attribute has become runtime read-only
-        if (registerRuntimeOnly) {
-            registry.registerReadWriteAttribute(CommonAttributes.CLUSTERED, HornetQServerControlHandler.INSTANCE, new OperationStepHandler() {
-                @Override
-                public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
-                    throw MESSAGES.canNotWriteClusteredAttribute();
-                }
-            });
-        }
     }
 
     @Override
@@ -84,7 +86,7 @@ public class HornetQServerControlWriteHandler extends AbstractWriteAttributeHand
         } else {
 
             ServiceRegistry registry = context.getServiceRegistry(true);
-            final ServiceName hqServiceName = MessagingServices.getHornetQServiceName(PathAddress.pathAddress(operation.get(ModelDescriptionConstants.OP_ADDR)));
+            final ServiceName hqServiceName = MessagingServices.getHornetQServiceName(PathAddress.pathAddress(operation.get(OP_ADDR)));
             ServiceController<?> hqService = registry.getService(hqServiceName);
             if (hqService == null) {
                 // The service isn't installed, so the work done in the Stage.MODEL part is all there is to it
@@ -96,6 +98,9 @@ public class HornetQServerControlWriteHandler extends AbstractWriteAttributeHand
                 // No, don't barf; just let the update apply to the model and put the server in a reload-required state
                 return true;
             } else {
+                if (!isHornetQServerActive(context, operation)) {
+                    return false;
+                }
                 applyOperationToHornetQService(context, operation, attributeName, hqService);
                 return false;
             }
@@ -111,7 +116,7 @@ public class HornetQServerControlWriteHandler extends AbstractWriteAttributeHand
         AttributeDefinition attr = getAttributeDefinition(attributeName);
         if (!attr.getFlags().contains(AttributeAccess.Flag.RESTART_ALL_SERVICES)) {
             ServiceRegistry registry = context.getServiceRegistry(true);
-            final ServiceName hqServiceName = MessagingServices.getHornetQServiceName(PathAddress.pathAddress(operation.get(ModelDescriptionConstants.OP_ADDR)));
+            final ServiceName hqServiceName = MessagingServices.getHornetQServiceName(PathAddress.pathAddress(operation.get(OP_ADDR)));
             ServiceController<?> hqService = registry.getService(hqServiceName);
             if (hqService != null && hqService.getState() == ServiceController.State.UP) {
                 // Create and execute a write-attribute operation that uses the valueToRestore
@@ -149,5 +154,46 @@ public class HornetQServerControlWriteHandler extends AbstractWriteAttributeHand
             throw new RuntimeException(e);
         }
 
+    }
+
+    /**
+     * The clustered configuration parameter no longer exists for HornetQ configuration (a hornetq server is automatically clustered if it has cluster-connections)
+     * but we continue to support it for legacy versions.
+     *
+     * For AS7 new versions, we compute its value based on the presence of cluster-connection children and ignore any write-attribute operation on it.
+     * We only warn the user if he wants to disable the clustered state of the server by setting it to false.
+     */
+    private static final class ClusteredAttributeHandlers {
+        static final OperationStepHandler READ_HANDLER = new OperationStepHandler() {
+            @Override
+            public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
+                boolean clustered = isClustered(context);
+                context.getResult().set(clustered);
+                context.stepCompleted();
+            }
+        };
+
+        static final OperationStepHandler WRITE_HANDLER = new OperationStepHandler() {
+            @Override
+            public void execute(OperationContext context, ModelNode operation) throws OperationFailedException {
+                // the real clustered HornetQ state
+                boolean clustered = isClustered(context);
+                // whether the user wants the server to be clustered
+                ModelNode mock = new ModelNode();
+                mock.get(CLUSTERED.getName()).set(operation.get(VALUE));
+                boolean wantsClustered = CLUSTERED.resolveModelAttribute(context, mock).asBoolean();
+                if (clustered && !wantsClustered) {
+                    PathAddress serverAddress = PathAddress.pathAddress(operation.get(OP_ADDR));
+                    MessagingLogger.MESSAGING_LOGGER.canNotChangeClusteredAttribute(serverAddress);
+                }
+                // ignore the operation
+                context.stepCompleted();
+            }
+        };
+
+        private static boolean isClustered(OperationContext context) {
+            Set<String> clusterConnectionNames = context.readResource(PathAddress.EMPTY_ADDRESS).getChildrenNames(ClusterConnectionDefinition.PATH.getKey());
+            return !clusterConnectionNames.isEmpty();
+        }
     }
 }

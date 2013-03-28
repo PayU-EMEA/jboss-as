@@ -42,20 +42,15 @@ vi:ts=4:sw=4:expandtab
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <includes>
                         <include>org/jboss/as/ejb3/**/*TestCase.java</include>
                     </includes>
+                    <systemPropertyVariables>
+                      <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+                      <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>
@@ -65,12 +60,6 @@ vi:ts=4:sw=4:expandtab
             <groupId>${project.groupId}</groupId>
             <artifactId>jboss-as-connector</artifactId>
         </dependency>
-        <!--
-<dependency>
-<groupId>${project.groupId}</groupId>
-<artifactId>jboss-as-domain</artifactId>
-</dependency>
--->
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>jboss-as-controller</artifactId>
@@ -97,6 +86,11 @@ vi:ts=4:sw=4:expandtab
         <dependency>
             <groupId>${project.groupId}</groupId>
             <artifactId>jboss-as-security</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>${project.groupId}</groupId>
+            <artifactId>jboss-as-security-util</artifactId>
         </dependency>
 
         <dependency>
@@ -166,7 +160,7 @@ projects that depend on this project.-->
 
         <dependency>
             <groupId>org.jboss.spec.javax.ejb</groupId>
-            <artifactId>jboss-ejb-api_3.1_spec</artifactId>
+            <artifactId>jboss-ejb-api_3.2_spec</artifactId>
         </dependency>
 
         <dependency>
@@ -194,6 +188,7 @@ projects that depend on this project.-->
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-subsystem-test</artifactId>
+						<type>pom</type>
             <scope>test</scope>
         </dependency>
     </dependencies>

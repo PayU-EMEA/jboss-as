@@ -27,6 +27,7 @@
 
     <resources>
         <!-- Insert resources here -->
+        <resource-root path="timers" />
     </resources>
 
     <dependencies>
@@ -59,6 +60,7 @@
         <module name="org.jboss.as.network"/>
         <module name="org.jboss.as.remoting"/>
         <module name="org.jboss.as.security"/>
+        <module name="org.jboss.as.security-util"/>
         <module name="org.jboss.as.server"/>
         <module name="org.jboss.as.threads"/>
         <module name="org.jboss.as.transactions"/>
@@ -88,7 +90,7 @@
         <!-- For parser DUP -->
         <module name="org.jboss.vfs"/>
         <module name="org.picketbox"/>
-        
+
         <module name="org.omg.api"/>
         <module name="org.picketbox"/>
     </dependencies>

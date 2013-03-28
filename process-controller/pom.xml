@@ -57,19 +57,14 @@
             <redirectTestOutputToFile>true</redirectTestOutputToFile>
           </configuration>
         </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
-                </configuration>
-            </plugin>
       </plugins>
     </build>
 
     <dependencies>
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-security-util</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-version</artifactId>
@@ -109,15 +104,15 @@
         <profile>
             <id>tools</id>
             <activation>
-                <file><exists>${java.home}/../lib/tools.jar</exists></file>
+                <file><exists>${com.sun.tools.path}</exists></file>
             </activation>
             <dependencies>
-                <dependency>
-                    <groupId>system</groupId>
-                    <artifactId>jdk-tools</artifactId>
-                    <version>jdk</version>
+                    <dependency>
+                    <groupId>com.sun</groupId>
+                    <artifactId>tools</artifactId>
                     <scope>system</scope>
-                    <systemPath>${java.home}/../lib/tools.jar</systemPath>
+                    <version>1.6</version>
+                    <systemPath>${com.sun.tools.path}</systemPath>
                 </dependency>
             </dependencies>
         </profile>

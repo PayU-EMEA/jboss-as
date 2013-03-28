@@ -28,6 +28,7 @@ import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationFailedException;
 import org.jboss.as.controller.PathAddress;
 import org.jboss.as.controller.ReloadRequiredRemoveStepHandler;
+import org.jboss.as.controller.ReloadRequiredWriteAttributeHandler;
 import org.jboss.as.controller.SimpleAttributeDefinition;
 import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.controller.SimpleResourceDefinition;
@@ -42,7 +43,8 @@ import org.jboss.msc.service.ServiceName;
  * @created 19.12.11 21:04
  */
 class MailSessionDefinition extends SimpleResourceDefinition {
-    public static MailSessionDefinition INSTANCE = new MailSessionDefinition();
+
+    static final MailSessionDefinition INSTANCE = new MailSessionDefinition();
 
     private MailSessionDefinition() {
         super(MailExtension.MAIL_SESSION_PATH,
@@ -72,8 +74,9 @@ class MailSessionDefinition extends SimpleResourceDefinition {
 
     @Override
     public void registerAttributes(final ManagementResourceRegistration rootResourceRegistration) {
+        ReloadRequiredWriteAttributeHandler handler = new ReloadRequiredWriteAttributeHandler(ATTRIBUTES);
         for (AttributeDefinition attr : ATTRIBUTES) {
-            rootResourceRegistration.registerReadWriteAttribute(attr, null, SessionAttributeWriteHandler.INSTANCE);
+            rootResourceRegistration.registerReadWriteAttribute(attr, null, handler);
         }
     }
 
@@ -97,7 +100,6 @@ class MailSessionDefinition extends SimpleResourceDefinition {
             } else if (def == FROM) {
                 service.getConfig().setFrom(resolvedValue.asString());
             }
-            //context.getServiceTarget().addService(serviceName);
             return false;
         }
 

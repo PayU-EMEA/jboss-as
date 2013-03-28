@@ -30,13 +30,18 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.naming.Context;
+import javax.security.auth.login.LoginException;
+
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.text.StrSubstitutor;
 import org.apache.directory.server.annotations.CreateLdapServer;
 import org.apache.directory.server.annotations.CreateTransport;
 import org.apache.directory.server.core.annotations.AnnotationUtils;
@@ -86,7 +91,7 @@ import org.junit.runner.RunWith;
 
 /**
  * A LdapLoginModuleTestCase, based on examples from https://community.jboss.org/wiki/LdapExtLoginModule
- * 
+ *
  * @author Josef Cacek
  */
 @RunWith(Arquillian.class)
@@ -111,12 +116,13 @@ public class LdapExtLoginModuleTestCase {
 
     private static final String DEP1 = "DEP1";
     private static final String DEP2 = "DEP2";
+    private static final String DEP2_THROW = "DEP2-throw";
     private static final String DEP3 = "DEP3";
     private static final String DEP4 = "DEP4";
     private static final String DEP5 = "DEP5";
 
     private static final String[] ROLE_NAMES = { "TheDuke", "Echo", "TheDuke2", "Echo2", "JBossAdmin", "jduke", "jduke2",
-            "RG1", "RG2", "RG3", "R1", "R2", "R3", "R4", "R5", "Roles" };
+            "RG1", "RG2", "RG3", "R1", "R2", "R3", "R4", "R5", "Roles", "User", "Admin", "SharedRoles" };
 
     private static final String QUERY_ROLES;
     static {
@@ -131,7 +137,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Creates {@link WebArchive} for {@link #test1(URL)}.
-     * 
+     *
      * @return
      */
     @Deployment(name = DEP1)
@@ -141,7 +147,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Creates {@link WebArchive} for {@link #test2(URL)}.
-     * 
+     *
      * @return
      */
     @Deployment(name = DEP2)
@@ -150,8 +156,18 @@ public class LdapExtLoginModuleTestCase {
     }
 
     /**
+     * Creates {@link WebArchive} for {@link #test2throw(URL)}.
+     *
+     * @return
+     */
+    @Deployment(name = DEP2_THROW)
+    public static WebArchive deployment2throw() {
+        return createWar(SECURITY_DOMAIN_NAME_PREFIX + DEP2_THROW);
+    }
+
+    /**
      * Creates {@link WebArchive} for {@link #test3(URL)}.
-     * 
+     *
      * @return
      */
     @Deployment(name = DEP3)
@@ -161,7 +177,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Creates {@link WebArchive} for {@link #test4(URL)}.
-     * 
+     *
      * @return
      */
     @Deployment(name = DEP4)
@@ -171,7 +187,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Creates {@link WebArchive} for {@link #test5(URL)}.
-     * 
+     *
      * @return
      */
     @Deployment(name = DEP5)
@@ -181,121 +197,85 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Test case for Example 1.
-     * 
+     *
      * @throws Exception
      */
     @Test
     @OperateOnDeployment(DEP1)
     public void test1(@ArquillianResource URL webAppURL) throws Exception {
-        testDeployment(webAppURL, "jduke", false);
+        testDeployment(webAppURL, "jduke", "TheDuke", "Echo", "Admin");
     }
 
     /**
      * Test case for Example 2.
-     * 
+     *
      * @throws Exception
      */
     @Test
     @OperateOnDeployment(DEP2)
     public void test2(@ArquillianResource URL webAppURL) throws Exception {
-        testDeployment(webAppURL, "jduke", true);
+        testDeployment(webAppURL, "jduke", "TheDuke", "Echo", "jduke");
+    }
+
+    @Test
+    @OperateOnDeployment(DEP2_THROW)
+    public void test2throw(@ArquillianResource URL webAppURL) throws Exception {
+        testDeployment(webAppURL, "jduke", "TheDuke", "Echo", "jduke");
     }
 
     /**
      * Test case for Example 3.
-     * 
+     *
      * @throws Exception
      */
     @Test
     @OperateOnDeployment(DEP3)
     public void test3(@ArquillianResource URL webAppURL) throws Exception {
-        testDeployment(webAppURL, "Java Duke", false);
+        testDeployment(webAppURL, "Java Duke", "TheDuke", "Echo", "Admin");
     }
 
     /**
      * Test case for Example 4.
-     * 
+     *
      * @throws Exception
      */
     @Test
     @OperateOnDeployment(DEP4)
     public void test4(@ArquillianResource URL webAppURL) throws Exception {
-        final URL rolesPrintingURL = new URL(webAppURL.toExternalForm() + RolePrintingServlet.SERVLET_PATH.substring(1) + "?"
-                + QUERY_ROLES);
-        final String userName = "Java Duke";
-        final String rolesResponse = Utils.makeCallWithBasicAuthn(rolesPrintingURL, userName, "theduke", 200);
-
-        assertNotInRole(rolesResponse, "jduke");
-        assertNotInRole(rolesResponse, "Java Duke");
-        assertNotInRole(rolesResponse, "Roles");
-        assertNotInRole(rolesResponse, "JBossAdmin");
-        assertNotInRole(rolesResponse, "R4");
-        //assigned roles
-        assertInRole(rolesResponse, "RG2");
-        assertInRole(rolesResponse, "R1");
-        assertInRole(rolesResponse, "R2");
-        assertInRole(rolesResponse, "R3");
-        assertInRole(rolesResponse, "R5");
-
-        final URL principalPrintingURL = new URL(webAppURL.toExternalForm()
-                + PrincipalPrintingServlet.SERVLET_PATH.substring(1) + "?" + QUERY_ROLES);
-        final String principal = Utils.makeCallWithBasicAuthn(principalPrintingURL, userName, "theduke", 200);
-        assertEquals("Unexpected Principal name", userName, principal);
+        testDeployment(webAppURL, "Java Duke", "RG2", "R1", "R2", "R3", "R5");
     }
 
     /**
      * Test case for Example 5.
-     * 
+     *
      * @throws Exception
      */
     @Test
     @OperateOnDeployment(DEP5)
     public void test5(@ArquillianResource URL webAppURL) throws Exception {
-        final URL rolesPrintingURL = new URL(webAppURL.toExternalForm() + RolePrintingServlet.SERVLET_PATH.substring(1) + "?"
-                + QUERY_ROLES);
-        final String rolesResponse = Utils.makeCallWithBasicAuthn(rolesPrintingURL, "jduke", "theduke", 200);
-
-        assertInRole(rolesResponse, "R1");
-        assertNotInRole(rolesResponse, "R2");
-        assertNotInRole(rolesResponse, "jduke");
-        assertNotInRole(rolesResponse, "Java Duke");
-        assertNotInRole(rolesResponse, "Roles");
-        assertNotInRole(rolesResponse, "JBossAdmin");
-        assertNotInRole(rolesResponse, "RG1");
+        testDeployment(webAppURL, "jduke", "R1");
     }
 
     // Private methods -------------------------------------------------------
 
     /**
-     * Tests role assignment.
-     * 
-     * @param webAppURL
-     * @throws MalformedURLException
-     * @throws ClientProtocolException
-     * @throws IOException
-     * @throws URISyntaxException
+     * Tests role assignment for given deployment (web-app URL).
      */
-    private void testDeployment(URL webAppURL, String username, boolean hasJdukeRole) throws MalformedURLException,
-            ClientProtocolException, IOException, URISyntaxException {
+    private void testDeployment(URL webAppURL, String username, String... assignedRoles) throws MalformedURLException,
+            ClientProtocolException, IOException, URISyntaxException, LoginException {
         final URL rolesPrintingURL = new URL(webAppURL.toExternalForm() + RolePrintingServlet.SERVLET_PATH.substring(1) + "?"
                 + QUERY_ROLES);
         final String rolesResponse = Utils.makeCallWithBasicAuthn(rolesPrintingURL, username, "theduke", 200);
 
-        if (hasJdukeRole) {
-            assertInRole(rolesResponse, "jduke");
-        } else {
-            assertNotInRole(rolesResponse, "jduke");
+        final List<String> assignedRolesList = Arrays.asList(assignedRoles);
+
+        for (String role : ROLE_NAMES) {
+            if (assignedRolesList.contains(role)) {
+                assertInRole(rolesResponse, role);
+            } else {
+                assertNotInRole(rolesResponse, role);
+            }
         }
-        assertNotInRole(rolesResponse, "Java Duke");
-        assertNotInRole(rolesResponse, "Roles");
-        assertNotInRole(rolesResponse, "JBossAdmin");
-        assertNotInRole(rolesResponse, "TheDuke2");
-        assertNotInRole(rolesResponse, "Echo2");
-
-        //assigned roles
-        assertInRole(rolesResponse, "TheDuke");
-        assertInRole(rolesResponse, "Echo");
-
         final URL principalPrintingURL = new URL(webAppURL.toExternalForm()
                 + PrincipalPrintingServlet.SERVLET_PATH.substring(1) + "?" + QUERY_ROLES);
         final String principal = Utils.makeCallWithBasicAuthn(principalPrintingURL, username, "theduke", 200);
@@ -304,7 +284,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Creates a {@link WebArchive} for given security domain.
-     * 
+     *
      * @param securityDomainName
      * @return
      */
@@ -324,7 +304,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Asserts, the role list returned from the {@link RolePrintingServlet} contains the given role.
-     * 
+     *
      * @param rolePrintResponse
      * @param role
      */
@@ -336,7 +316,7 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * Asserts, the role list returned from the {@link RolePrintingServlet} doesn't contain the given role.
-     * 
+     *
      * @param rolePrintResponse
      * @param role
      */
@@ -364,14 +344,14 @@ public class LdapExtLoginModuleTestCase {
 
     /**
      * A {@link ServerSetupTask} instance which creates security domains for this test case.
-     * 
+     *
      * @author Josef Cacek
      */
     static class SecurityDomainsSetup extends AbstractSecurityDomainsServerSetupTask {
 
         /**
          * Returns SecurityDomains configuration for this testcase.
-         * 
+         *
          * @see org.jboss.as.test.integration.security.common.AbstractSecurityDomainsServerSetupTask#getSecurityDomains()
          */
         @Override
@@ -381,36 +361,39 @@ public class LdapExtLoginModuleTestCase {
                     .name(SECURITY_DOMAIN_NAME_PREFIX + DEP1)
                     .loginModules(
                             new SecurityModule.Builder().name("org.jboss.security.auth.spi.LdapExtLoginModule")
-                                    .options(getCommonOptions()).putOption("baseCtxDN", "ou=People,dc=jboss,dc=org")
+                                    .options(getCommonOptions()).putOption(Context.REFERRAL, "follow")
+                                    .putOption("baseCtxDN", "ou=People,dc=jboss,dc=org")
                                     .putOption("java.naming.provider.url", "ldap://" + secondaryTestAddress + ":" + LDAP_PORT)
                                     .putOption("baseFilter", "(uid={0})").putOption("rolesCtxDN", "ou=Roles,dc=jboss,dc=org")
-                                    .putOption("roleFilter", "(member={1})").putOption("roleAttributeID", "cn")
-                                    .putOption("throwValidateError", "true").build()) //
+                                    .putOption("roleFilter", "(|(objectClass=referral)(member={1}))")
+                                    .putOption("roleAttributeID", "cn").build()) //
                     .build();
-            final SecurityDomain sd2 = new SecurityDomain.Builder()
-                    .name(SECURITY_DOMAIN_NAME_PREFIX + DEP2)
-                    .loginModules(
-                            new SecurityModule.Builder().name("LdapExtended").options(getCommonOptions())
-                                    .putOption("java.naming.provider.url", "ldap://" + secondaryTestAddress + ":" + LDAP_PORT)
-                                    .putOption("baseCtxDN", "ou=People,o=example2,dc=jboss,dc=org")
-                                    .putOption("baseFilter", "(uid={0})")
-                                    .putOption("rolesCtxDN", "ou=Roles,o=example2,dc=jboss,dc=org")
-                                    .putOption("roleFilter", "(cn={0})").putOption("roleAttributeID", "description")
-                                    .putOption("roleAttributeIsDN", "true").putOption("roleNameAttributeID", "cn")
-                                    .putOption("roleRecursion", "0").putOption("throwValidateError", "true").build()) //
-                    .build();
+            final SecurityModule.Builder sd2LoginModuleBuilder = new SecurityModule.Builder().name("LdapExtended")
+                    .options(getCommonOptions()).putOption(Context.REFERRAL, "ignore")
+                    .putOption("java.naming.provider.url", "ldap://" + secondaryTestAddress + ":" + LDAP_PORT)
+                    .putOption("baseCtxDN", "ou=People,o=example2,dc=jboss,dc=org").putOption("baseFilter", "(uid={0})")
+                    .putOption("rolesCtxDN", "ou=Roles,o=example2,dc=jboss,dc=org")
+                    .putOption("roleFilter", "(|(objectClass=referral)(cn={0}))").putOption("roleAttributeID", "description")
+                    .putOption("roleAttributeIsDN", "true").putOption("roleNameAttributeID", "cn")
+                    .putOption("roleRecursion", "0");
+            final SecurityDomain sd2 = new SecurityDomain.Builder().name(SECURITY_DOMAIN_NAME_PREFIX + DEP2)
+                    .loginModules(sd2LoginModuleBuilder.build()).build();
+            sd2LoginModuleBuilder.putOption(Context.REFERRAL, "throw");
+            final SecurityDomain sd2throw = new SecurityDomain.Builder().name(SECURITY_DOMAIN_NAME_PREFIX + DEP2_THROW)
+                    .loginModules(sd2LoginModuleBuilder.build()).build();
             final SecurityDomain sd3 = new SecurityDomain.Builder()
                     .name(SECURITY_DOMAIN_NAME_PREFIX + DEP3)
                     .loginModules(
                             new SecurityModule.Builder()
                                     .name(LdapExtLoginModule.class.getName())
                                     .options(getCommonOptions())
+                                    .putOption(Context.REFERRAL, "follow")
                                     .putOption("java.naming.provider.url", "ldaps://" + secondaryTestAddress + ":" + LDAPS_PORT)
                                     .putOption("baseCtxDN", "ou=People,o=example3,dc=jboss,dc=org")
                                     .putOption("baseFilter", "(cn={0})")
                                     .putOption("rolesCtxDN", "ou=Roles,o=example3,dc=jboss,dc=org")
-                                    .putOption("roleFilter", "(member={1})").putOption("roleAttributeID", "cn")
-                                    .putOption("roleRecursion", "0").putOption("throwValidateError", "true").build()) //
+                                    .putOption("roleFilter", "(|(objectClass=referral)(member={1}))")
+                                    .putOption("roleAttributeID", "cn").putOption("roleRecursion", "0").build()) //
                     .build();
             final SecurityDomain sd4 = new SecurityDomain.Builder()
                     .name(SECURITY_DOMAIN_NAME_PREFIX + DEP4)
@@ -418,17 +401,19 @@ public class LdapExtLoginModuleTestCase {
                             new SecurityModule.Builder()
                                     .name(LdapExtLoginModule.class.getName())
                                     .options(getCommonOptions())
+                                    .putOption(Context.REFERRAL, "ignore")
                                     .putOption("java.naming.provider.url", "ldaps://" + secondaryTestAddress + ":" + LDAPS_PORT)
                                     .putOption("baseCtxDN", "ou=People,o=example4,dc=jboss,dc=org")
                                     .putOption("baseFilter", "(cn={0})")
                                     .putOption("rolesCtxDN", "ou=Roles,o=example4,dc=jboss,dc=org")
-                                    .putOption("roleFilter", "(member={1})").putOption("roleAttributeID", "cn")
-                                    .putOption("roleRecursion", "1").putOption("throwValidateError", "true").build()) //
+                                    .putOption("roleFilter", "(|(objectClass=referral)(member={1}))")
+                                    .putOption("roleAttributeID", "cn").putOption("roleRecursion", "1").build()) //
                     .build();
             final SecurityDomain sd5 = new SecurityDomain.Builder()
                     .name(SECURITY_DOMAIN_NAME_PREFIX + DEP5)
                     .loginModules(
                             new SecurityModule.Builder().name(LdapExtLoginModule.class.getName()).options(getCommonOptions())
+                                    .putOption(Context.REFERRAL, "throw")
                                     .putOption("java.naming.provider.url", "ldap://" + secondaryTestAddress + ":" + LDAP_PORT) //
                                     .putOption("baseCtxDN", "ou=People,o=example5,dc=jboss,dc=org") //
                                     .putOption("baseFilter", "(uid={0})") //
@@ -436,15 +421,16 @@ public class LdapExtLoginModuleTestCase {
                                     .putOption("roleFilter", "(uid={0})") //
                                     .putOption("roleAttributeID", "employeeNumber").build()) //
                     .build();
-            return new SecurityDomain[] { sd1, sd2, sd3, sd4, sd5 };
+            return new SecurityDomain[] { sd1, sd2, sd2throw, sd3, sd4, sd5 };
         }
 
         private Map<String, String> getCommonOptions() {
             final Map<String, String> moduleOptions = new HashMap<String, String>();
-            moduleOptions.put("java.naming.factory.initial", "com.sun.jndi.ldap.LdapCtxFactory");
-            moduleOptions.put("java.naming.security.authentication", "simple");
+            moduleOptions.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+            moduleOptions.put(Context.SECURITY_AUTHENTICATION, "simple");
             moduleOptions.put("bindDN", SECURITY_PRINCIPAL);
             moduleOptions.put("bindCredential", SECURITY_CREDENTIALS);
+            moduleOptions.put("throwValidateError", "true");
             return moduleOptions;
         }
     }
@@ -453,20 +439,20 @@ public class LdapExtLoginModuleTestCase {
      * A server setup task which configures and starts LDAP server.
      */
     //@formatter:off
-    @CreateDS( 
+    @CreateDS(
         name = "JBossDS",
         partitions =
         {
             @CreatePartition(
                 name = "jboss",
                 suffix = "dc=jboss,dc=org",
-                contextEntry = @ContextEntry( 
+                contextEntry = @ContextEntry(
                     entryLdif =
                         "dn: dc=jboss,dc=org\n" +
                         "dc: jboss\n" +
                         "objectClass: top\n" +
                         "objectClass: domain\n\n" ),
-                indexes = 
+                indexes =
                 {
                     @CreateIndex( attribute = "objectClass" ),
                     @CreateIndex( attribute = "dc" ),
@@ -474,14 +460,14 @@ public class LdapExtLoginModuleTestCase {
                 })
         },
         additionalInterceptors = { KeyDerivationInterceptor.class })
-    @CreateLdapServer ( 
-        transports = 
+    @CreateLdapServer (
+        transports =
         {
-            @CreateTransport( protocol = "LDAP",  port = LDAP_PORT), 
-            @CreateTransport( protocol = "LDAPS", port = LDAPS_PORT) 
+            @CreateTransport( protocol = "LDAP",  port = LDAP_PORT),
+            @CreateTransport( protocol = "LDAPS", port = LDAPS_PORT)
         },
 //        keyStore="ldaps.jks",
-        certificatePassword="secret")            
+        certificatePassword="secret")
     //@formatter:on
     static class LDAPServerSetupTask implements ServerSetupTask {
 
@@ -490,7 +476,7 @@ public class LdapExtLoginModuleTestCase {
 
         /**
          * Creates directory services, starts LDAP server and KDCServer
-         * 
+         *
          * @param managementClient
          * @param containerId
          * @throws Exception
@@ -499,11 +485,20 @@ public class LdapExtLoginModuleTestCase {
          */
         public void setup(ManagementClient managementClient, String containerId) throws Exception {
             directoryService = DSAnnotationProcessor.getDirectoryService();
+            final String hostname = Utils.getSecondaryTestAddress(managementClient);
+            final Map<String, String> map = new HashMap<String, String>();
+            map.put("hostname", hostname);
+            map.put("ldapPort", Integer.toString(LDAP_PORT));
+            map.put("ldapsPort", Integer.toString(LDAPS_PORT));
+            final String ldifContent = StrSubstitutor.replace(
+                    IOUtils.toString(
+                            LdapExtLoginModuleTestCase.class.getResourceAsStream(LdapExtLoginModuleTestCase.class
+                                    .getSimpleName() + ".ldif"), "UTF-8"), map);
+            LOGGER.debug(ldifContent);
+
             final SchemaManager schemaManager = directoryService.getSchemaManager();
             try {
-                for (LdifEntry ldifEntry : new LdifReader(
-                        LdapExtLoginModuleTestCase.class.getResourceAsStream(LdapExtLoginModuleTestCase.class.getSimpleName()
-                                + ".ldif"))) {
+                for (LdifEntry ldifEntry : new LdifReader(IOUtils.toInputStream(ldifContent))) {
                     directoryService.getAdminSession().add(new DefaultEntry(schemaManager, ldifEntry.getEntry()));
                 }
             } catch (Exception e) {
@@ -516,14 +511,14 @@ public class LdapExtLoginModuleTestCase {
             IOUtils.copy(getClass().getResourceAsStream(KEYSTORE_FILENAME), fos);
             fos.close();
             createLdapServer.setKeyStore(KEYSTORE_FILE.getAbsolutePath());
-            fixTransportAddress(createLdapServer, StringUtils.strip(Utils.getSecondaryTestAddress(managementClient), "[]"));
+            fixTransportAddress(createLdapServer, Utils.getSecondaryTestAddress(managementClient, false));
             ldapServer = ServerAnnotationProcessor.instantiateLdapServer(createLdapServer, directoryService);
             ldapServer.start();
         }
 
         /**
          * Fixes bind address in the CreateTransport annotation.
-         * 
+         *
          * @param createLdapServer
          */
         private void fixTransportAddress(ManagedCreateLdapServer createLdapServer, String address) {
@@ -537,7 +532,7 @@ public class LdapExtLoginModuleTestCase {
 
         /**
          * Stops LDAP server and KDCServer and shuts down the directory service.
-         * 
+         *
          * @param managementClient
          * @param containerId
          * @throws Exception

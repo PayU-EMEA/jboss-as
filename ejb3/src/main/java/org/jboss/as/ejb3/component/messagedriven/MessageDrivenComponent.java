@@ -42,10 +42,12 @@ import org.jboss.as.ejb3.inflow.MessageEndpointService;
 import org.jboss.as.ejb3.pool.Pool;
 import org.jboss.as.ejb3.pool.StatelessObjectFactory;
 import org.jboss.as.naming.ManagedReference;
+import org.jboss.as.util.security.GetClassLoaderAction;
 import org.jboss.invocation.Interceptor;
 import org.jboss.invocation.InterceptorFactoryContext;
 import org.jboss.jca.core.spi.rar.Endpoint;
 
+import static java.security.AccessController.doPrivileged;
 import static java.util.Collections.emptyMap;
 import static javax.ejb.TransactionAttributeType.REQUIRED;
 import static org.jboss.as.ejb3.EjbLogger.ROOT_LOGGER;
@@ -101,6 +103,7 @@ public class MessageDrivenComponent extends EJBComponent implements PooledCompon
 
         this.activationSpec = activationSpec;
         this.messageListenerInterface = messageListenerInterface;
+        final ClassLoader componentClassLoader = doPrivileged(new GetClassLoaderAction(ejbComponentCreateService.getComponentClass()));
         final MessageEndpointService<?> service = new MessageEndpointService<Object>() {
             @Override
             public Class<Object> getMessageListenerInterface() {
@@ -124,7 +127,7 @@ public class MessageDrivenComponent extends EJBComponent implements PooledCompon
             public Object obtain(long timeout, TimeUnit unit) {
                 // like this it's a disconnected invocation
 //                return getComponentView(messageListenerInterface).getViewForInstance(null);
-                return createViewInstanceProxy(messageListenerInterface, emptyMap());
+                return createViewInstanceProxy(getComponentClass(), emptyMap());
             }
 
             @Override
@@ -134,10 +137,10 @@ public class MessageDrivenComponent extends EJBComponent implements PooledCompon
 
             @Override
             public ClassLoader getClassLoader() {
-                return ejbComponentCreateService.getComponentClass().getClassLoader();
+                return componentClassLoader;
             }
         };
-        this.endpointFactory = new JBossMessageEndpointFactory(getComponentClass().getClassLoader(), service);
+        this.endpointFactory = new JBossMessageEndpointFactory(componentClassLoader, service, (Class<Object>) getComponentClass());
     }
 
     @Override
@@ -211,6 +214,6 @@ public class MessageDrivenComponent extends EJBComponent implements PooledCompon
 
     @Override
     public AllowedMethodsInformation getAllowedMethodsInformation() {
-        return MessageDrivenAllowedMethodsInformation.INSTANCE;
+        return isBeanManagedTransaction() ? MessageDrivenAllowedMethodsInformation.INSTANCE_BMT : MessageDrivenAllowedMethodsInformation.INSTANCE_CMT;
     }
 }

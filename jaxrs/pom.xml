@@ -45,15 +45,10 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
                     <enableAssertions>true</enableAssertions>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <compilerArgument>
-                        -AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files
-                    </compilerArgument>
+                     <systemPropertyVariables>
+                         <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+                         <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+                     </systemPropertyVariables>
                 </configuration>
             </plugin>
         </plugins>
@@ -68,17 +63,22 @@
 
         <dependency>
             <groupId>org.jboss.as</groupId>
-            <artifactId>jboss-as-server</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-ee</artifactId>
         </dependency>
 
         <dependency>
             <groupId>org.jboss.as</groupId>
-            <artifactId>jboss-as-web</artifactId>
+            <artifactId>jboss-as-security-util</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-server</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.as</groupId>
+            <artifactId>jboss-as-web-common</artifactId>
         </dependency>
 
         <dependency>
@@ -112,6 +112,11 @@
 
         <dependency>
             <groupId>org.jboss.resteasy</groupId>
+            <artifactId>jaxrs-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
             <artifactId>resteasy-jaxrs</artifactId>
         </dependency>
 
@@ -122,12 +127,7 @@
 
         <dependency>
             <groupId>org.jboss.spec.javax.annotation</groupId>
-            <artifactId>jboss-annotations-api_1.1_spec</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.jboss.spec.javax.ws.rs</groupId>
-            <artifactId>jboss-jaxrs-api_1.1_spec</artifactId>
+            <artifactId>jboss-annotations-api_1.2_spec</artifactId>
         </dependency>
 
         <dependency>
@@ -139,6 +139,7 @@
         <dependency>
             <groupId>org.jboss.as</groupId>
             <artifactId>jboss-as-subsystem-test</artifactId>
+						<type>pom</type>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -32,7 +32,6 @@
         <version>8.0.0.Alpha1-SNAPSHOT</version>
     </parent>
 
-    <groupId>org.jboss.as</groupId>
     <artifactId>jboss-as-webservices-server-integration</artifactId>
     <version>8.0.0.Alpha1-SNAPSHOT</version>
     <packaging>jar</packaging>
@@ -41,16 +40,6 @@
 
     <build>
         <plugins>
-            <plugin>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <showDeprecation>true</showDeprecation>
-                    <!-- Seems like a hacky way to pass multiple arguments, but it's the only way it worked. -->
-                    <fork>true</fork>
-                    <compilerArgument>-Djava.endorsed.dirs=${project.build.directory}/endorsed" "-AgeneratedTranslationFilesPath=${project.build.directory}/generated-translation-files</compilerArgument>
-                </configuration>
-            </plugin>
-
             <plugin>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
@@ -82,6 +71,17 @@
                         <include>**/*TestCase.java</include>
                     </includes>
                     <enableAssertions>false</enableAssertions>
+                    <systemPropertyVariables>
+                        <org.jboss.model.test.cache.root>${org.jboss.model.test.cache.root}</org.jboss.model.test.cache.root>
+                        <org.jboss.model.test.classpath.cache>${org.jboss.model.test.classpath.cache}</org.jboss.model.test.classpath.cache>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <fork>true</fork>
                 </configuration>
             </plugin>
         </plugins>
@@ -101,6 +101,11 @@
 
     <dependency>
        <groupId>org.jboss.as</groupId>
+       <artifactId>jboss-as-security-util</artifactId>
+    </dependency>
+
+    <dependency>
+       <groupId>org.jboss.as</groupId>
        <artifactId>jboss-as-server</artifactId>
     </dependency>
 
@@ -115,8 +120,14 @@
     </dependency>
 
     <dependency>
+        <groupId>org.jboss.as</groupId>
+        <artifactId>jboss-as-web-common</artifactId>
+    </dependency>
+    <!-- TODO remove when undertow is merged in-->
+    <dependency>
        <groupId>org.jboss.as</groupId>
        <artifactId>jboss-as-web</artifactId>
+       <scope>test</scope>
     </dependency>
 
     <dependency>
@@ -151,9 +162,9 @@
     <dependency>
         <groupId>org.jboss.as</groupId>
         <artifactId>jboss-as-subsystem-test</artifactId>
+				<type>pom</type>
         <scope>test</scope>
     </dependency>
 
  </dependencies>
-
 </project>

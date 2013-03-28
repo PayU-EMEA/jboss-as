@@ -31,6 +31,8 @@
         <!-- Insert resources here -->
     </resources>
 
+    <!-- export all -->
+    
     <dependencies>
         <module name="org.jboss.logging"/>
         <module name="org.jboss.osgi.metadata"/>
@@ -38,6 +40,5 @@
         <module name="org.jboss.osgi.vfs"/>
         <module name="org.jboss.vfs"/>
         <module name="org.osgi.core"/>
-        <module name="org.osgi.enterprise"/>
     </dependencies>
 </module>

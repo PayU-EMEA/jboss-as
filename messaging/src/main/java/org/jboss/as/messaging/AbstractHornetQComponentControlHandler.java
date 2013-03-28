@@ -36,7 +36,6 @@ import static org.jboss.dmr.ModelType.BOOLEAN;
 import org.hornetq.api.core.management.HornetQComponentControl;
 import org.hornetq.core.server.HornetQServer;
 import org.jboss.as.controller.AbstractRuntimeOnlyHandler;
-import org.jboss.as.controller.ControllerMessages;
 import org.jboss.as.controller.OperationContext;
 import org.jboss.as.controller.OperationDefinition;
 import org.jboss.as.controller.OperationFailedException;
@@ -77,19 +76,30 @@ public abstract class AbstractHornetQComponentControlHandler<T extends HornetQCo
 
         final String operationName = operation.require(OP).asString();
 
-        HornetQComponentControl control = null;
-        boolean appliedToRuntime = false;
-        Object handback = null;
         if (READ_ATTRIBUTE_OPERATION.equals(operationName)) {
+            if (HornetQActivationService.ignoreOperationIfServerNotActive(context, operation)) {
+                return;
+            }
             readAttributeValidator.validate(operation);
             final String name = operation.require(NAME).asString();
             if (STARTED.getName().equals(name)) {
-                control = getHornetQComponentControl(context, operation, false);
+                HornetQComponentControl control = getHornetQComponentControl(context, operation, false);
                 context.getResult().set(control.isStarted());
             } else {
                 handleReadAttribute(name, context, operation);
             }
-        } else if (START.equals(operationName)) {
+            context.stepCompleted();
+            return;
+        }
+
+        if (HornetQActivationService.rollbackOperationIfServerNotActive(context, operation)) {
+            return;
+        }
+
+        HornetQComponentControl control = null;
+        boolean appliedToRuntime = false;
+        Object handback = null;
+        if (START.equals(operationName)) {
             control = getHornetQComponentControl(context, operation, true);
             try {
                 control.start();

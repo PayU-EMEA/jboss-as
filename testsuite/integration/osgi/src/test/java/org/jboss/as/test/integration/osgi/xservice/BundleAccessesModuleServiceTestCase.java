@@ -113,8 +113,8 @@ public class BundleAccessesModuleServiceTestCase extends AbstractXServiceTestCas
                 // The client bundle activator registers a StringBuffer service that
                 // contains the result from the module service call
                 BundleContext context = clientBundle.getBundleContext();
-                ServiceReference sref = context.getServiceReference(StringBuffer.class.getName());
-                StringBuffer service = (StringBuffer) context.getService(sref);
+                ServiceReference<StringBuffer> sref = context.getServiceReference(StringBuffer.class);
+                StringBuffer service = context.getService(sref);
                 assertEquals("hello world", service.toString());
             } finally {
                 // Uninstall the client bundle

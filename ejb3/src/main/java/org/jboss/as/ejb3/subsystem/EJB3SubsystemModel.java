@@ -23,10 +23,7 @@
 package org.jboss.as.ejb3.subsystem;
 
 import org.jboss.as.controller.PathElement;
-import org.jboss.as.controller.SimpleAttributeDefinition;
-import org.jboss.as.controller.SimpleAttributeDefinitionBuilder;
 import org.jboss.as.threads.ThreadsServices;
-import org.jboss.dmr.ModelType;
 import org.jboss.msc.service.ServiceName;
 
 /**
@@ -42,6 +39,7 @@ public interface EJB3SubsystemModel {
     String CONNECTOR_REF = "connector-ref";
     String IN_VM_REMOTE_INTERFACE_INVOCATION_PASS_BY_VALUE = "in-vm-remote-interface-invocation-pass-by-value";
 
+    String DATASOURCE_JNDI_NAME = "datasource-jndi-name";
     String DEFAULT_DISTINCT_NAME = "default-distinct-name";
     String DEFAULT_SECURITY_DOMAIN = "default-security-domain";
     String DEFAULT_MDB_INSTANCE_POOL = "default-mdb-instance-pool";
@@ -49,6 +47,7 @@ public interface EJB3SubsystemModel {
     String DEFAULT_RESOURCE_ADAPTER_NAME = "default-resource-adapter-name";
     String DEFAULT_SFSB_CACHE = "default-sfsb-cache";
     String DEFAULT_CLUSTERED_SFSB_CACHE = "default-clustered-sfsb-cache";
+    String DEFAULT_SFSB_PASSIVATION_DISABLED_CACHE = "default-sfsb-passivation-disabled-cache";
     String DEFAULT_SLSB_INSTANCE_POOL = "default-slsb-instance-pool";
     String INSTANCE_ACQUISITION_TIMEOUT = "timeout";
     String INSTANCE_ACQUISITION_TIMEOUT_UNIT = "timeout-unit";
@@ -56,6 +55,8 @@ public interface EJB3SubsystemModel {
     String DEFAULT_ENTITY_BEAN_OPTIMISTIC_LOCKING = "default-entity-bean-optimistic-locking";
 
     String ENABLE_STATISTICS = "enable-statistics";
+
+    String FILE_DATA_STORE = "file-data-store";
 
     String MAX_POOL_SIZE = "max-pool-size";
     String STRICT_MAX_BEAN_INSTANCE_POOL = "strict-max-bean-instance-pool";
@@ -68,6 +69,7 @@ public interface EJB3SubsystemModel {
 
     String DEFAULT_SINGLETON_BEAN_ACCESS_TIMEOUT = "default-singleton-bean-access-timeout";
     String DEFAULT_STATEFUL_BEAN_ACCESS_TIMEOUT = "default-stateful-bean-access-timeout";
+    String DEFAULT_DATA_STORE = "default-data-store";
 
     String REMOTE = "remote";
     String SERVICE = "service";
@@ -100,11 +102,16 @@ public interface EJB3SubsystemModel {
     String VALUE = "value";
     String TYPE = "type";
 
+    String DATABASE = "database";
+    String DATABASE_DATA_STORE = "database-data-store";
+
     PathElement REMOTE_SERVICE_PATH = PathElement.pathElement(SERVICE, REMOTE);
     PathElement ASYNC_SERVICE_PATH = PathElement.pathElement(SERVICE, ASYNC);
     PathElement TIMER_SERVICE_PATH = PathElement.pathElement(SERVICE, TIMER_SERVICE);
     PathElement THREAD_POOL_PATH = PathElement.pathElement(THREAD_POOL);
     PathElement IIOP_PATH = PathElement.pathElement(SERVICE, IIOP);
+    PathElement FILE_DATA_STORE_PATH = PathElement.pathElement(FILE_DATA_STORE);
+    PathElement DATABASE_DATA_STORE_PATH = PathElement.pathElement(DATABASE_DATA_STORE);
 
     ServiceName BASE_THREAD_POOL_SERVICE_NAME = ThreadsServices.EXECUTOR.append("ejb3");
 }

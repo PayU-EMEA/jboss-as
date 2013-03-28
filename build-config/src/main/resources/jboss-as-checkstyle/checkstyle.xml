@@ -23,8 +23,12 @@
             <property name="allowStaticMemberImports" value="true"/>
         </module>
         <module name="RedundantImport"/>
-        <!-- Disabled until checkstyle can recognize imports which are used only by javadoc -->
-        <!--<module name="UnusedImports"/>-->
+
+        <module name="UnusedImports" />
+
+        <module name="IllegalImport">
+            <property name="illegalPkgs" value="junit.framework"/>
+        </module>
 
         <!-- Modifier Checks                                    -->
         <module name="ModifierOrder"/>

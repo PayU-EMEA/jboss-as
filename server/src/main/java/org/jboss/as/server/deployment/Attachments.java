@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.Manifest;
 
 import org.jboss.as.controller.ServiceVerificationHandler;
-import org.jboss.as.server.deployment.annotation.AnnotationIndexProcessor;
 import org.jboss.as.server.deployment.annotation.CompositeIndex;
 import org.jboss.as.server.deployment.module.AdditionalModuleSpecification;
 import org.jboss.as.server.deployment.module.ExtensionInfo;
@@ -89,20 +88,12 @@ public final class Attachments {
     public static final AttachmentKey<VirtualFile> DEPLOYMENT_CONTENTS = AttachmentKey.create(VirtualFile.class);
 
     /**
-     * The deployment hash
-     */
-    //public static final AttachmentKey<byte[]> DEPLOYMENT_HASH = AttachmentKey.create(byte[].class);
-
-    /**
-     * The special status listener attachment.
-     */
-    public static final AttachmentKey<AbstractDeploymentUnitService.DeploymentServiceListener> STATUS_LISTENER = AttachmentKey.create(AbstractDeploymentUnitService.DeploymentServiceListener.class);
-
-    /**
      * This should be added as a listener to all non child services
      */
     public static final AttachmentKey<ServiceVerificationHandler> SERVICE_VERIFICATION_HANDLER = AttachmentKey.create(ServiceVerificationHandler.class);
 
+
+    public static final AttachmentKey<Boolean> ALLOW_PHASE_RESTART = AttachmentKey.create(Boolean.class);
     //
     // STRUCTURE
     //
@@ -174,7 +165,7 @@ public final class Attachments {
     public static final AttachmentKey<Boolean> COMPUTE_COMPOSITE_ANNOTATION_INDEX = AttachmentKey.create(Boolean.class);
 
     /**
-     * An attachment that indicates if a {@link ResourceRoot} should be indexed by the {@link AnnotationIndexProcessor}. If this
+     * An attachment that indicates if a {@link ResourceRoot} should be indexed by the {@link org.jboss.as.server.deployment.annotation.AnnotationIndexProcessor}. If this
      * is not present then the resource root is indexed by default.
      */
     public static final AttachmentKey<Boolean> INDEX_RESOURCE_ROOT = AttachmentKey.create(Boolean.class);

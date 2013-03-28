@@ -105,8 +105,8 @@ public class DefaultEmbeddedCacheManager extends AbstractDelegatingEmbeddedCache
      * @see org.infinispan.manager.EmbeddedCacheManager#getCache(java.lang.String, boolean)
      */
     @Override
-    public <K, V> Cache<K, V> getCache(String cacheName, boolean start) {
-        Cache<K, V> cache = this.cm.<K, V>getCache(this.getCacheName(cacheName), start);
+    public <K, V> Cache<K, V> getCache(String cacheName, boolean createIfAbsent) {
+        Cache<K, V> cache = this.cm.<K, V>getCache(this.getCacheName(cacheName), createIfAbsent);
         return (cache != null) ? new DelegatingCache<K, V>(cache) : null;
     }
 

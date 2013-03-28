@@ -22,7 +22,23 @@
 
 package org.jboss.as.test.integration.ejb.security.callerprincipal;
 
+import javax.jms.DeliveryMode;
+import javax.jms.Message;
+import javax.jms.MessageConsumer;
+import javax.jms.MessageProducer;
+import javax.jms.ObjectMessage;
+import javax.jms.Queue;
+import javax.jms.QueueConnection;
+import javax.jms.QueueConnectionFactory;
+import javax.jms.QueueSession;
+import javax.jms.Session;
+import javax.jms.TemporaryQueue;
+import javax.jms.TextMessage;
+import javax.naming.InitialContext;
+import javax.naming.NamingException;
+
 import junit.framework.Assert;
+
 import org.jboss.arquillian.container.test.api.Deployer;
 import org.jboss.arquillian.container.test.api.Deployment;
 import org.jboss.arquillian.container.test.api.OperateOnDeployment;
@@ -38,8 +54,6 @@ import org.jboss.as.test.integration.management.base.AbstractMgmtTestBase;
 import org.jboss.as.test.integration.management.util.MgmtOperationException;
 import org.jboss.as.test.integration.security.common.AbstractSecurityDomainSetup;
 import org.jboss.dmr.ModelNode;
-import org.jboss.ejb.client.EJBClient;
-import org.jboss.ejb.client.EJBHomeLocator;
 import org.jboss.logging.Logger;
 import org.jboss.security.client.SecurityClient;
 import org.jboss.security.client.SecurityClientFactory;
@@ -52,22 +66,6 @@ import org.jboss.util.Base64;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-
-import javax.ejb.EJBHome;
-import javax.jms.DeliveryMode;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.ObjectMessage;
-import javax.jms.Queue;
-import javax.jms.QueueConnection;
-import javax.jms.QueueConnectionFactory;
-import javax.jms.QueueSession;
-import javax.jms.Session;
-import javax.jms.TemporaryQueue;
-import javax.jms.TextMessage;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 
 /**
  * The Bean Provider can invoke the getCallerPrincipal and isCallerInRole methods only
@@ -183,20 +181,6 @@ public class GetCallerPrincipalTestCase {
         return jar;
     }
 
-    @Deployment(managed=false, testable = false, name = "eb", order = 103)
-    public static Archive<?> deploymentEntityBean()  {
-        final JavaArchive jar = ShrinkWrap.create(JavaArchive.class, "eb.jar")
-                .addClass(EntityBeanBean.class)
-                .addClass(EntityBeanHome.class)
-                .addClass(EntityBean.class)
-                .addAsManifestResource(GetCallerPrincipalTestCase.class.getPackage(), "MANIFEST.MF-bean", "MANIFEST.MF")
-                .addAsManifestResource(GetCallerPrincipalTestCase.class.getPackage(), "jboss-ejb3.xml", "jboss-ejb3.xml")
-                .addAsManifestResource(GetCallerPrincipalTestCase.class.getPackage(), "ejb-jar.xml", "ejb-jar.xml");
-        jar.addPackage(CommonCriteria.class.getPackage());
-        log.info(jar.toString(true));
-        return jar;
-    }
-
     @Deployment(managed = true, testable = true, name="test", order = 3)
     public static Archive<?> deployment()  {
         final JavaArchive jar = ShrinkWrap.create(JavaArchive.class, "callerprincipal-test.jar")
@@ -205,7 +189,6 @@ public class GetCallerPrincipalTestCase {
                 .addClass(SLSBWithoutSecurityDomain.class)
                 .addClass(ISLSBWithoutSecurityDomain.class)
                 .addClass(PollingUtils.class)
-                .addClass(EntityBean.class)
                 .addClasses(JmsQueueSetup.class, EjbSecurityDomainSetup.class, AbstractSecurityDomainSetup.class, AbstractMgmtTestBase.class)
                 .addPackage(AbstractMgmtTestBase.class.getPackage()).addClasses(MgmtOperationException.class, XMLElementReader.class, XMLElementWriter.class)
                 .addAsResource(GetCallerPrincipalTestCase.class.getPackage(), "users.properties", "users.properties")
@@ -335,49 +318,4 @@ public class GetCallerPrincipalTestCase {
         }
     }
 
-    @Test
-    public void testEBActivate() throws Exception {
-        deployer.deploy("eb");
-        EntityBean eb = setUpEB();
-        SecurityClient client = this.login();
-        ITestResultsSingleton results = this.getResultsSingleton();
-
-        try {
-            Assert.assertEquals(OK, results.getEb("ejbactivate"));
-        } finally {
-            tearDownEB(eb);
-            client.logout();
-        }
-        deployer.undeploy("eb");
-    }
-
-    // app name: simple jar - empty app name
-    // module name: name of jar = eb
-    private <T extends EJBHome> T getHome(final Class<T> homeClass, final String beanName) {
-        final EJBHomeLocator<T> locator = new EJBHomeLocator<T>(homeClass, "", "eb", beanName, "");
-        return EJBClient.createProxy(locator);
-    }
-
-    private EntityBean setUpEB() throws Exception {
-        EntityBeanHome ebHome = getHome(EntityBeanHome.class, "EntityBeanCallerPrincipal");
-        EntityBean entityBean = null;
-
-        try {
-            entityBean = ebHome.findByPrimaryKey("test");
-        } catch (Exception e) {
-        }
-
-        if (entityBean == null) {
-            entityBean = ebHome.create("test");
-        }
-        return entityBean;
-    }
-
-    private void tearDownEB(EntityBean eb) throws Exception {
-        try {
-            eb.remove();
-        } catch(Exception e) {
-            // ;)
-        }
-    }
 }

@@ -52,7 +52,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -325,7 +324,7 @@ public class ApplyRemoteMasterDomainModelHandler implements OperationStepHandler
                     final ModelNode op = new ModelNode();
                     op.get(OP).set(ServerRestartRequiredHandler.OPERATION_NAME);
                     op.get(OP_ADDR).set(serverAddress.toModelNode());
-                    context.addStep(op, handler, OperationContext.Stage.IMMEDIATE);
+                    context.addStep(op, handler, OperationContext.Stage.MODEL, true);
                 }
             }
         }

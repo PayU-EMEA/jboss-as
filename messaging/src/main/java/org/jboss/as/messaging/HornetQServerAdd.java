@@ -119,7 +119,6 @@ import org.jboss.as.controller.descriptions.ModelDescriptionConstants;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.controller.services.path.PathManager;
 import org.jboss.as.controller.services.path.PathManagerService;
-import org.jboss.as.messaging.HornetQService.PathConfig;
 import org.jboss.as.messaging.jms.JMSService;
 import org.jboss.as.network.OutboundSocketBinding;
 import org.jboss.as.network.SocketBinding;
@@ -228,9 +227,7 @@ class HornetQServerAdd implements OperationStepHandler {
 
                 // Create the HornetQ Service
                 final HornetQService hqService = new HornetQService(
-                        new PathConfig(bindingsPath, bindingsRelativeToPath, journalPath, journalRelativeToPath, largeMessagePath, largeMessageRelativeToPath, pagingPath, pagingRelativeToPath));
-
-                hqService.setConfiguration(configuration);
+                        configuration, new HornetQService.PathConfig(bindingsPath, bindingsRelativeToPath, journalPath, journalRelativeToPath, largeMessagePath, largeMessageRelativeToPath, pagingPath, pagingRelativeToPath));
 
                 // Add the HornetQ Service
                 ServiceName hqServiceName = MessagingServices.getHornetQServiceName(serverName);
@@ -271,6 +268,8 @@ class HornetQServerAdd implements OperationStepHandler {
                                 hqService.getSocketBindingInjector(outboundSocketBinding));
                     }
                 }
+                //this requires connectors
+                BroadcastGroupAdd.addBroadcastGroupConfigs(context, configuration, model);
 
                 final List<BroadcastGroupConfiguration> broadcastGroupConfigurations = configuration.getBroadcastGroupConfigurations();
                 final Map<String, DiscoveryGroupConfiguration> discoveryGroupConfigurations = configuration.getDiscoveryGroupConfigurations();
@@ -424,7 +423,6 @@ class HornetQServerAdd implements OperationStepHandler {
 
         // Add in items from child resources
         GroupingHandlerAdd.addGroupingHandlerConfig(context,configuration, model);
-        BroadcastGroupAdd.addBroadcastGroupConfigs(context, configuration, model);
         DiscoveryGroupAdd.addDiscoveryGroupConfigs(context, configuration, model);
         DivertAdd.addDivertConfigs(context, configuration, model);
         QueueAdd.addQueueConfigs(context, configuration, model);

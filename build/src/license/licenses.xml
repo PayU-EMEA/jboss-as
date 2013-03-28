@@ -803,28 +803,6 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.apache.juddi</groupId>
-      <artifactId>juddi-client</artifactId>
-      <licenses>
-        <license>
-          <name>Apache License, Version 2.0</name>
-          <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.juddi</groupId>
-      <artifactId>uddi-ws</artifactId>
-      <licenses>
-        <license>
-          <name>Apache License, Version 2.0</name>
-          <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
       <groupId>org.apache.neethi</groupId>
       <artifactId>neethi</artifactId>
       <licenses>
@@ -896,17 +874,6 @@
       <licenses>
         <license>
           <name>Apache Software License, Version 2.0</name>
-          <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.juddi.scout</groupId>
-      <artifactId>scout</artifactId>
-      <licenses>
-        <license>
-          <name>Apache License, Version 2.0</name>
           <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
           <distribution>repo</distribution>
         </license>
@@ -1039,6 +1006,22 @@
         <license>
           <name>Apache Software License, Version 2.0</name>
           <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
+          <distribution>repo</distribution>
+        </license>
+      </licenses>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish</groupId>
+      <artifactId>javax.json</artifactId>
+      <licenses>
+        <license>
+          <name>Common Development and Distribution License</name>
+          <url>http://repository.jboss.org/licenses/cddl.txt</url>
+          <distribution>repo</distribution>
+        </license>
+        <license>
+          <name>GNU General Public License, Version 2 with the Classpath Exception</name>
+          <url>http://repository.jboss.org/licenses/gpl-2.0-ce.txt</url>
           <distribution>repo</distribution>
         </license>
       </licenses>
@@ -1560,17 +1543,6 @@
     </dependency>
     <dependency>
       <groupId>org.jboss.as</groupId>
-      <artifactId>jboss-as-cmp</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.as</groupId>
       <artifactId>jboss-as-config-assembly</artifactId>
       <licenses>
         <license>
@@ -1702,17 +1674,6 @@
     </dependency>
     <dependency>
       <groupId>org.jboss.as</groupId>
-      <artifactId>jboss-as-ee-deployment</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.as</groupId>
       <artifactId>jboss-as-ejb-client-bom</artifactId>
       <licenses>
         <license>
@@ -1758,17 +1719,6 @@
     <dependency>
       <groupId>org.jboss.as</groupId>
       <artifactId>jboss-as-jacorb</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.as</groupId>
-      <artifactId>jboss-as-jaxr</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -2183,16 +2133,6 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.com.sun.httpserver</groupId>
-      <artifactId>httpserver</artifactId>
-      <licenses>
-        <license>
-          <name>GNU General Public License, Version 2</name>
-          <url>http://repository.jboss.org/licenses/gpl-2.0.txt</url>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
       <groupId>org.jboss.ejb3</groupId>
       <artifactId>jboss-ejb3-ext-api</artifactId>
       <licenses>
@@ -2303,8 +2243,8 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.jbossts.jts</groupId>
-      <artifactId>jbossjts-jacorb</artifactId>
+      <groupId>org.jboss.narayana.jts</groupId>
+      <artifactId>narayana-jts-jacorb</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -2313,8 +2253,8 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.jbossts.jts</groupId>
-      <artifactId>jbossjts-integration</artifactId>
+      <groupId>org.jboss.narayana.jts</groupId>
+      <artifactId>narayana-jts-integration</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -2323,7 +2263,7 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.jbossts</groupId>
+      <groupId>org.jboss.narayana</groupId>
       <artifactId>jbosstxbridge</artifactId>
       <licenses>
         <license>
@@ -2333,7 +2273,7 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.jbossts.xts</groupId>
+      <groupId>org.jboss.narayana.xts</groupId>
       <artifactId>jbossxts</artifactId>
       <licenses>
         <license>
@@ -2343,7 +2283,7 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.jboss.jbossts.xts</groupId>
+      <groupId>org.jboss.narayana.xts</groupId>
       <artifactId>jbossxts</artifactId>
       <classifier>api</classifier>
       <licenses>
@@ -2887,7 +2827,7 @@
     </dependency>
     <dependency>
       <groupId>org.jboss.spec.javax.annotation</groupId>
-      <artifactId>jboss-annotations-api_1.1_spec</artifactId>
+      <artifactId>jboss-annotations-api_1.2_spec</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -2897,7 +2837,7 @@
     </dependency>
     <dependency>
       <groupId>org.jboss.spec.javax.ejb</groupId>
-      <artifactId>jboss-ejb-api_3.1_spec</artifactId>
+      <artifactId>jboss-ejb-api_3.2_spec</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -2908,16 +2848,6 @@
     <dependency>
       <groupId>org.jboss.spec.javax.el</groupId>
       <artifactId>jboss-el-api_2.2_spec</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.spec.javax.enterprise.deploy</groupId>
-      <artifactId>jboss-jad-api_1.2_spec</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -3068,16 +2998,6 @@
     <dependency>
       <groupId>org.jboss.spec.javax.xml.bind</groupId>
       <artifactId>jboss-jaxb-api_2.2_spec</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.jboss.spec.javax.xml.registry</groupId>
-      <artifactId>jboss-jaxr-api_1.0_spec</artifactId>
       <licenses>
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
@@ -3371,17 +3291,6 @@
       </licenses>
     </dependency>
     <dependency>
-      <groupId>org.osgi</groupId>
-      <artifactId>org.osgi.enterprise</artifactId>
-      <licenses>
-        <license>
-          <name>Apache Software License, Version 2.0</name>
-          <url>http://repository.jboss.org/licenses/apache-2.0.txt</url>
-          <distribution>repo</distribution>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
       <groupId>org.picketbox</groupId>
       <artifactId>picketbox</artifactId>
       <licenses>
@@ -3448,16 +3357,6 @@
         <license>
           <name>GNU Lesser General Public License, Version 2.1</name>
           <url>http://repository.jboss.com/licenses/lgpl-2.1.txt</url>
-        </license>
-      </licenses>
-    </dependency>
-    <dependency>
-      <groupId>org.projectodd.stilts</groupId>
-      <artifactId>stilts-stomplet-server-bundle</artifactId>
-      <licenses>
-        <license>
-          <name>GNU Lesser General Public License, Version 2.1</name>
-          <url>http://repository.jboss.org/licenses/lgpl-2.1.txt</url>
         </license>
       </licenses>
     </dependency>

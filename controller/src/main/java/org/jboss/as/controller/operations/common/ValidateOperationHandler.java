@@ -52,8 +52,8 @@ import org.jboss.dmr.ModelType;
  */
 public class ValidateOperationHandler implements OperationStepHandler {
 
-    public static ValidateOperationHandler INSTANCE = new ValidateOperationHandler(false);
-    public static ValidateOperationHandler SLAVE_HC_INSTANCE = new ValidateOperationHandler(true);
+    public static final ValidateOperationHandler INSTANCE = new ValidateOperationHandler(false);
+    public static final ValidateOperationHandler SLAVE_HC_INSTANCE = new ValidateOperationHandler(true);
 
     private static final SimpleAttributeDefinition VALUE = new SimpleAttributeDefinitionBuilder(ModelDescriptionConstants.VALUE, ModelType.OBJECT)
             .setAllowNull(false)
@@ -112,7 +112,7 @@ public class ValidateOperationHandler implements OperationStepHandler {
             proxyOp.get(VALUE.getName(), OP_ADDR).set(translator.translateAddress(addr).toModelNode());
             final ModelNode result = new ModelNode();
 
-            context.addStep(result, proxyOp, proxyReg.getOperationHandler(PathAddress.EMPTY_ADDRESS, VALIDATE_OPERATION), Stage.IMMEDIATE);
+            context.addStep(result, proxyOp, proxyReg.getOperationHandler(PathAddress.EMPTY_ADDRESS, VALIDATE_OPERATION), Stage.MODEL, true);
             context.completeStep(new OperationContext.RollbackHandler() {
 
                 @Override

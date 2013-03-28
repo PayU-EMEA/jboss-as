@@ -41,8 +41,10 @@ import org.jboss.as.controller.ServiceVerificationHandler;
 import org.jboss.as.controller.registry.Resource;
 import org.jboss.as.controller.services.path.PathManager;
 import org.jboss.as.controller.services.path.PathManagerService;
-import org.jboss.as.server.mgmt.HttpManagementService;
+import org.jboss.as.server.mgmt._UndertowHttpManagementService;
 import org.jboss.as.server.mgmt.domain.HttpManagement;
+import org.jboss.as.web.deployment.common.JBossWebHost;
+import org.jboss.as.web.host.WebHost;
 import org.jboss.dmr.ModelNode;
 import org.jboss.dmr.Property;
 import org.jboss.msc.service.ServiceBuilder;
@@ -93,6 +95,14 @@ class WebVirtualHostAdd extends AbstractAddStepHandler {
                 .addDependency(PathManagerService.SERVICE_NAME, PathManager.class, service.getPathManagerInjector())
                 .addDependency(WebSubsystemServices.JBOSS_WEB, WebServer.class, service.getWebServer());
 
+        final JBossWebHost commonWebHost = new JBossWebHost();
+        ServiceController<WebHost> commonBuilder = serviceTarget.addService(WebHost.SERVICE_NAME.append(name), commonWebHost)
+                .addDependency(WebSubsystemServices.JBOSS_WEB_HOST.append(name), VirtualHost.class, commonWebHost.getInjectedHost())
+                .install();
+        if(newControllers != null) {
+            newControllers.add(commonBuilder);
+        }
+
         if (fullModel.get(ACCESS_LOG_PATH.getKey(), ACCESS_LOG_PATH.getValue()).isDefined()) {
             final ModelNode unresolved = fullModel.get(ACCESS_LOG_PATH.getKey(), ACCESS_LOG_PATH.getValue());
 
@@ -141,7 +151,7 @@ class WebVirtualHostAdd extends AbstractAddStepHandler {
             newControllers.add(context.getServiceTarget().addService(WebSubsystemServices.JBOSS_WEB.append(name).append("welcome"), welcomeService)
                     .addDependency(PathManagerService.SERVICE_NAME, PathManager.class, welcomeService.getPathManagerInjector())
                     .addDependency(WebSubsystemServices.JBOSS_WEB_HOST.append(name), VirtualHost.class, welcomeService.getHostInjector())
-                    .addDependency(ServiceBuilder.DependencyType.OPTIONAL, HttpManagementService.SERVICE_NAME, HttpManagement.class, welcomeService.getHttpManagementInjector())
+                    .addDependency(ServiceBuilder.DependencyType.OPTIONAL, _UndertowHttpManagementService.SERVICE_NAME, HttpManagement.class, welcomeService.getHttpManagementInjector())
                     .addListener(verificationHandler)
                     .setInitialMode(ServiceController.Mode.ACTIVE)
                     .install());

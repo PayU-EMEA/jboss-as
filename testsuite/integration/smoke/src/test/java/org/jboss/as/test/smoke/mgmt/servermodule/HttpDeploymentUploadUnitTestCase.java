@@ -21,6 +21,13 @@
  */
 package org.jboss.as.test.smoke.mgmt.servermodule;
 
+
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OUTCOME;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RESULT;
+import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUCCESS;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.Closeable;
@@ -43,12 +50,6 @@ import org.jboss.shrinkwrap.api.exporter.ZipExporter;
 import org.jboss.shrinkwrap.api.spec.JavaArchive;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.OUTCOME;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.RESULT;
-import static org.jboss.as.controller.descriptions.ModelDescriptionConstants.SUCCESS;
 
 /**
  * Test the HTTP API upload functionality to ensure that a deployment is successfully
@@ -99,7 +100,7 @@ public class HttpDeploymentUploadUnitTestCase {
             // Write the POST request and read the response from the HTTP server.
             writeUploadRequest(is, os);
             // JBAS-9291
-            assertEquals("text/html", connection.getHeaderField("Content-Type"));
+            assertEquals("text/html;utf-8", connection.getHeaderField("Content-Type"));
             ModelNode node = readResult(connection.getInputStream());
             assertNotNull(node);
             System.out.println(node);

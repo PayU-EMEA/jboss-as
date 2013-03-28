@@ -24,9 +24,8 @@ package org.jboss.as.connector.subsystems.complextestcases;
 import java.util.Enumeration;
 import java.util.Properties;
 
-import junit.framework.Assert;
-
 import org.jboss.dmr.ModelNode;
+import org.junit.Assert;
 
 /**Common utility class for parsing operation tests
  *
@@ -59,7 +58,6 @@ public class ParseUtils {
         //security
         params.put("user-name","sa");
         params.put("password","sa");
-        params.put("security-domain","HsqlDbRealm");
         params.put("reauth-plugin-class-name","someClass1");
         //validation
         params.put("valid-connection-checker-class-name","someClass2");
@@ -108,7 +106,6 @@ public class ParseUtils {
         params.put("recovery-plugin-class-name","someClass5");
         params.put("recovery-username","sa");
         params.put("recovery-password","sa");
-        params.put("recovery-security-domain","HsqlDbRealm");
 
 
     	return params;
@@ -180,7 +177,6 @@ public class ParseUtils {
         params.put("recovery-plugin-class-name","someClass2");
         params.put("recovery-username","sa");
         params.put("recovery-password","sa-pass");
-        params.put("recovery-security-domain","HsqlDbRealm");
 
     	return params;
     }
