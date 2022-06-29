@@ -254,7 +254,7 @@
         <version.org.picketlink>2.1.6.Final</version.org.picketlink>
         <version.org.powermock>1.5</version.org.powermock>
         <version.org.scannotation>1.0.2</version.org.scannotation>
-        <version.org.slf4j>1.7.2</version.org.slf4j>
+        <version.org.slf4j>1.7.26</version.org.slf4j>
         <version.org.sonatype.aether>1.13.1</version.org.sonatype.aether>
         <version.org.testng>6.1.1</version.org.testng>
         <version.org.yaml.snakeyaml>1.8</version.org.yaml.snakeyaml>
